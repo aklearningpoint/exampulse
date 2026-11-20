@@ -41,18 +41,12 @@
 
     <!-- View 2: Tests -->
     <section id="view-tests" class="hidden">
-      <div id="quiz-container" class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
-        <p class="font-bold text-slate-800">Mock Test Engine</p>
-        <p class="text-xs text-slate-500 mt-1">Interactive quizzes will load here.</p>
-      </div>
+      <div id="quiz-container"></div>
     </section>
 
     <!-- View 3: Static GK & PDF Store -->
     <section id="view-vault" class="hidden">
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
-        <p class="font-bold text-slate-800">Static GK Vault & Monthly PDF Store</p>
-        <p class="text-xs text-slate-500 mt-1">Subject notes and downloadable PDFs will appear here.</p>
-      </div>
+      <div id="vault-container"></div>
     </section>
 
     <!-- View 4: Built-in Creator Admin Studio -->
@@ -103,15 +97,17 @@
 
   <!-- Bottom Navigation -->
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex justify-around py-2">
-    <button onclick="window.switchTab('feed')" class="nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
-    <button onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
-    <button onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & PDF</button>
+    <button id="nav-feed" onclick="window.switchTab('feed')" class="nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
+    <button id="nav-tests" onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
+    <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & PDF</button>
   </nav>
 
   <!-- App Wiring -->
   <script type="module">
     import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, ADMIN_EMAIL } from "./core/firebase-config.js";
     import { loadDailyFeed, setExamFilter } from "./modules/feed/feed-ui.js";
+    import { loadQuizList } from "./modules/quiz/quiz-engine.js";
+    import { loadVaultView } from "./modules/vault/vault-ui.js";
     import { publishFromJSON, loadRecentAdminDocs, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
 
     let currentUser = null;
@@ -128,6 +124,16 @@
       });
       document.getElementById(`view-${tab}`).classList.remove("hidden");
       document.getElementById("filter-bar").style.display = tab === "feed" ? "flex" : "none";
+
+      ["feed", "tests", "vault"].forEach(n => {
+        const el = document.getElementById(`nav-${n}`);
+        el.className = n === tab
+          ? "nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"
+          : "nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]";
+      });
+
+      if (tab === "tests") loadQuizList();
+      if (tab === "vault") loadVaultView();
     };
 
     onAuthStateChanged(auth, (user) => {
