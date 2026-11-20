@@ -49,23 +49,70 @@
       <div id="vault-container"></div>
     </section>
 
-    <!-- View 4: Built-in Creator Admin Studio -->
+    <!-- View 4: Built-in Creator Admin Studio (3 Sub-Tabs) -->
     <section id="view-admin" class="hidden">
-      <div class="bg-slate-900 text-white rounded-2xl p-4 mb-4">
+      <div class="bg-slate-900 text-white rounded-2xl p-4 mb-3">
         <h2 class="font-bold text-base">Creator Studio (Admin)</h2>
-        <p class="text-xs text-slate-400">Paste AI JSON to publish live content or generate presentation slides.</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
-        <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-20","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
-        <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
-        <div class="grid grid-cols-2 gap-2 mt-3">
-          <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
-          <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">Generate PPT Slides</button>
+        <p class="text-xs text-slate-400">Manage Daily CA, Static GK Notes, PDFs & Courses</p>
+        <div class="grid grid-cols-3 gap-1.5 mt-3">
+          <button onclick="window.switchAdminSubTab('ca')" id="subtab-ca" class="py-2 rounded-xl bg-amber-500 text-slate-950 text-[11px] font-bold">Daily CA & Quiz</button>
+          <button onclick="window.switchAdminSubTab('static')" id="subtab-static" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold">Static GK</button>
+          <button onclick="window.switchAdminSubTab('store')" id="subtab-store" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold">PDF & Courses</button>
         </div>
       </div>
-      <div class="bg-white rounded-2xl p-4 border border-slate-200">
-        <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Recent Published Content (Edit / Delete)</h3>
-        <div id="admin-recent-list"></div>
+
+      <!-- Sub-Tab 1: Daily CA & Quiz -->
+      <div id="admin-panel-ca">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
+          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-20","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+          <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
+          <div class="grid grid-cols-2 gap-2 mt-3">
+            <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
+            <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">Generate PPT Slides</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200">
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Recent Published Dates (Edit / Delete)</h3>
+          <div id="admin-recent-list"></div>
+        </div>
+      </div>
+
+      <!-- Sub-Tab 2: Static GK Publisher -->
+      <div id="admin-panel-static" class="hidden bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+        <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Publish Static GK Note</h3>
+        <select id="static-subject-select" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5">
+          <option value="history">Indian History</option>
+          <option value="polity">Indian Polity</option>
+          <option value="geography">Geography</option>
+          <option value="economy">Indian Economy</option>
+          <option value="science">General Science</option>
+          <option value="art">Art & Culture</option>
+        </select>
+        <input id="static-title-input" type="text" placeholder="Topic Title (e.g., Important Articles of Indian Constitution)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
+        <textarea id="static-content-input" rows="6" placeholder="Write concise exam-oriented static GK points..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2"></textarea>
+        <p id="static-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
+        <button id="publish-static-btn" class="w-full bg-slate-900 text-white text-xs font-bold py-3 rounded-xl">Publish Static Note</button>
+      </div>
+
+      <!-- Sub-Tab 3: PDF & Course Store Publisher -->
+      <div id="admin-panel-store" class="hidden">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Add PDF Digest or Course</h3>
+          <select id="store-type-select" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5">
+            <option value="pdf">PDF Study Material / Monthly Digest</option>
+            <option value="course">Video / Complete Exam Course</option>
+          </select>
+          <input id="store-title-input" type="text" placeholder="Title (e.g., November 2026 Current Affairs Digest)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
+          <input id="store-desc-input" type="text" placeholder="Short Description (e.g., 300+ MCQs + Static Links)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
+          <input id="store-price-input" type="number" placeholder="Price in INR (Enter 0 for Free)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
+          <input id="store-url-input" type="url" placeholder="Google Drive / Course Access URL" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2" />
+          <p id="store-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
+          <button id="publish-store-btn" class="w-full bg-slate-900 text-white text-xs font-bold py-3 rounded-xl">Add to Store</button>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200">
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Active Store Listings</h3>
+          <div id="admin-store-list"></div>
+        </div>
       </div>
     </section>
   </main>
@@ -99,7 +146,7 @@
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex justify-around py-2">
     <button id="nav-feed" onclick="window.switchTab('feed')" class="nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
     <button id="nav-tests" onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
-    <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & PDF</button>
+    <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & Store</button>
   </nav>
 
   <!-- App Wiring -->
@@ -108,7 +155,7 @@
     import { loadDailyFeed, setExamFilter } from "./modules/feed/feed-ui.js";
     import { loadQuizList } from "./modules/quiz/quiz-engine.js";
     import { loadVaultView } from "./modules/vault/vault-ui.js";
-    import { publishFromJSON, loadRecentAdminDocs, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
+    import { publishFromJSON, publishStaticNote, publishStoreItem, loadRecentAdminDocs, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
 
     let currentUser = null;
 
@@ -134,6 +181,16 @@
 
       if (tab === "tests") loadQuizList();
       if (tab === "vault") loadVaultView();
+    };
+
+    window.switchAdminSubTab = function(sub) {
+      ["ca", "static", "store"].forEach(s => {
+        document.getElementById(`admin-panel-${s}`).classList.add("hidden");
+        document.getElementById(`subtab-${s}`).className = "py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold";
+      });
+      document.getElementById(`admin-panel-${sub}`).classList.remove("hidden");
+      document.getElementById(`subtab-${sub}`).className = "py-2 rounded-xl bg-amber-500 text-slate-950 text-[11px] font-bold";
+      if (sub === "store") loadStoreAdminList();
     };
 
     onAuthStateChanged(auth, (user) => {
@@ -168,6 +225,8 @@
     });
 
     document.getElementById("publish-json-btn").addEventListener("click", publishFromJSON);
+    document.getElementById("publish-static-btn").addEventListener("click", publishStaticNote);
+    document.getElementById("publish-store-btn").addEventListener("click", publishStoreItem);
     document.getElementById("gen-ppt-btn").addEventListener("click", generateYouTubeSlides);
   </script>
 </body>
