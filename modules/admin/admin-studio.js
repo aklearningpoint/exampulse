@@ -1,6 +1,7 @@
 import { db, doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
 import { loadDailyFeed } from "../feed/feed-ui.js";
 
+// 1. Publish Daily CA & Quiz
 export async function publishFromJSON() {
   const raw = document.getElementById("admin-json-input").value.trim();
   const statusEl = document.getElementById("admin-status");
@@ -12,7 +13,7 @@ export async function publishFromJSON() {
       throw new Error("JSON must include 'date' (YYYY-MM-DD) and an 'articles' array.");
     }
 
-    statusEl.innerText = "Publishing to Firebase...";
+    statusEl.innerText = "Publishing Daily Feed & Quiz...";
     await setDoc(doc(db, "daily_feed", data.date), {
       date: data.date,
       articles: data.articles,
@@ -24,6 +25,7 @@ export async function publishFromJSON() {
         id: `quiz_${data.date}`,
         date: data.date,
         title: `Daily CA Quiz (${data.date})`,
+        category: "Daily CA",
         duration_mins: 5,
         negative_marking: 0.25,
         questions: data.questions
@@ -33,6 +35,65 @@ export async function publishFromJSON() {
     statusEl.innerText = `Published successfully for ${data.date}.`;
     loadDailyFeed(data.date);
     loadRecentAdminDocs();
+  } catch (err) {
+    statusEl.innerText = `Error: ${err.message}`;
+  }
+}
+
+// 2. Publish Static GK Topic Note
+export async function publishStaticNote() {
+  const subject = document.getElementById("static-subject-select").value;
+  const title = document.getElementById("static-title-input").value.trim();
+  const content = document.getElementById("static-content-input").value.trim();
+  const statusEl = document.getElementById("static-status");
+
+  if (!title || !content) return alert("Please enter both Topic Title and Notes content.");
+
+  try {
+    const noteId = `${subject}_${Date.now()}`;
+    await setDoc(doc(db, "static_notes", noteId), {
+      id: noteId,
+      subject,
+      title,
+      content,
+      createdAt: new Date().toISOString()
+    });
+    statusEl.innerText = "Static GK note published successfully.";
+    document.getElementById("static-title-input").value = "";
+    document.getElementById("static-content-input").value = "";
+  } catch (err) {
+    statusEl.innerText = `Error: ${err.message}`;
+  }
+}
+
+// 3. Publish PDF or Course to Store
+export async function publishStoreItem() {
+  const type = document.getElementById("store-type-select").value; // "pdf" or "course"
+  const title = document.getElementById("store-title-input").value.trim();
+  const desc = document.getElementById("store-desc-input").value.trim();
+  const price = parseFloat(document.getElementById("store-price-input").value) || 0;
+  const url = document.getElementById("store-url-input").value.trim();
+  const statusEl = document.getElementById("store-status");
+
+  if (!title || !url) return alert("Please provide Title and Resource/Access Link.");
+
+  try {
+    const itemId = `${type}_${Date.now()}`;
+    await setDoc(doc(db, "pdf_store", itemId), {
+      id: itemId,
+      type,
+      title,
+      description: desc,
+      price,
+      file_url: url,
+      createdAt: new Date().toISOString()
+    });
+    statusEl.innerText = `${type.toUpperCase()} added to Store successfully.`;
+    document.getElementById("store-title-input").value = "";
+    document.getElementById("store-desc-input").value = "";
+    document.getElementById("store-price-input").value = "";
+    document.getElementById("store-url-input").value = "";
+    loadStoreAdminList();
   } catch (err) {
     statusEl.innerText = `Error: ${err.message}`;
   }
@@ -60,6 +121,25 @@ export async function loadRecentAdminDocs() {
   }).join("");
 }
 
+export async function loadStoreAdminList() {
+  const listEl = document.getElementById("admin-store-list");
+  if (!listEl) return;
+  const q = query(collection(db, "pdf_store"), orderBy("createdAt", "desc"), limit(10));
+  const snap = await getDocs(q);
+
+  listEl.innerHTML = snap.docs.map(d => {
+    const item = d.data();
+    return `
+      <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
+        <div>
+          <p class="text-xs font-bold text-slate-800">${item.title} (${item.price === 0 ? "Free" : "₹" + item.price})</p>
+          <p class="text-[10px] uppercase text-slate-500">${item.type || "PDF"}</p>
+        </div>
+        <button onclick="window.deleteStoreItem('${d.id}')" class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">Delete</button>
+      </div>`;
+  }).join("");
+}
+
 window.loadDocToEditor = async function(dateStr) {
   const feedSnap = await getDoc(doc(db, "daily_feed", dateStr));
   const quizSnap = await getDoc(doc(db, "quizzes", `quiz_${dateStr}`));
@@ -78,6 +158,12 @@ window.deleteFeedDoc = async function(dateStr) {
   await deleteDoc(doc(db, "quizzes", `quiz_${dateStr}`));
   loadRecentAdminDocs();
   loadDailyFeed();
+};
+
+window.deleteStoreItem = async function(itemId) {
+  if (!confirm("Delete this item from the Store?")) return;
+  await deleteDoc(doc(db, "pdf_store", itemId));
+  loadStoreAdminList();
 };
 
 export function generateYouTubeSlides() {
@@ -102,7 +188,7 @@ export function generateYouTubeSlides() {
   `).join("");
 
   win.document.write(`
-    <html><head><title>ExamPulse YouTube Slides - ${data.date}</title>
+    <html><head><title>ExamPulse Slides - ${data.date}</title>
     <style>
       body { font-family: system-ui, sans-serif; background: #0f172a; color: white; margin: 0; padding: 20px; }
       .slide { background: #1e293b; border: 2px solid #334155; border-radius: 16px; padding: 40px; margin-bottom: 30px; min-height: 75vh; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
