@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const ADMIN_EMAIL = "ak415958@gmail.com";
+export const ADMIN_EMAIL = "ak415958@gmailcom";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCbLDab5Az_16wnWN2nq0UhBYn1VcKEOMw",
@@ -19,12 +19,11 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const provider = new GoogleAuthProvider();
 
-// Offline Persistence (Low data & instant reload ke liye)
 enableIndexedDbPersistence(db).catch((err) => {
   console.warn("Persistence skipped:", err.code);
 });
 
 export {
   signInWithPopup, signOut, onAuthStateChanged,
-  doc, getDoc, setDoc, updateDoc, collection, getDocs, query, orderBy, limit, deleteDoc
+  doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc
 };
