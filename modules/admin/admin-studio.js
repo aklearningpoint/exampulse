@@ -4,23 +4,21 @@ import { loadDailyFeed } from "../feed/feed-ui.js";
 export async function publishFromJSON() {
   const raw = document.getElementById("admin-json-input").value.trim();
   const statusEl = document.getElementById("admin-status");
-  if (!raw) return alert("Pehle AI JSON paste karein!");
+  if (!raw) return alert("Please paste the AI-generated JSON first.");
 
   try {
     const data = JSON.parse(raw);
     if (!data.date || !data.articles) {
-      throw new Error("JSON me 'date' (YYYY-MM-DD) aur 'articles' array hona zaroori hai.");
+      throw new Error("JSON must include 'date' (YYYY-MM-DD) and an 'articles' array.");
     }
 
     statusEl.innerText = "Publishing to Firebase...";
-    // 1. Save Daily Feed
     await setDoc(doc(db, "daily_feed", data.date), {
       date: data.date,
       articles: data.articles,
       updatedAt: new Date().toISOString()
     });
 
-    // 2. Save Quiz if questions exist
     if (data.questions && data.questions.length > 0) {
       await setDoc(doc(db, "quizzes", `quiz_${data.date}`), {
         id: `quiz_${data.date}`,
@@ -32,11 +30,11 @@ export async function publishFromJSON() {
       });
     }
 
-    statusEl.innerText = `✅ Published Successfully for ${data.date}!`;
+    statusEl.innerText = `Published successfully for ${data.date}.`;
     loadDailyFeed(data.date);
     loadRecentAdminDocs();
   } catch (err) {
-    statusEl.innerText = `❌ Error: ${err.message}`;
+    statusEl.innerText = `Error: ${err.message}`;
   }
 }
 
@@ -71,21 +69,20 @@ window.loadDocToEditor = async function(dateStr) {
     questions: quizSnap.exists() ? quizSnap.data().questions : []
   };
   document.getElementById("admin-json-input").value = JSON.stringify(combined, null, 2);
-  document.getElementById("admin-status").innerText = `Loaded ${dateStr} for editing.`;
+  document.getElementById("admin-status").innerText = `Loaded ${dateStr} into editor.`;
 };
 
 window.deleteFeedDoc = async function(dateStr) {
-  if (!confirm(`Kya aap ${dateStr} ka data delete karna chahte hain?`)) return;
+  if (!confirm(`Are you sure you want to delete all content for ${dateStr}?`)) return;
   await deleteDoc(doc(db, "daily_feed", dateStr));
   await deleteDoc(doc(db, "quizzes", `quiz_${dateStr}`));
   loadRecentAdminDocs();
   loadDailyFeed();
 };
 
-// Auto-PPT / Presentation Mode Generator for YouTube Recording
 export function generateYouTubeSlides() {
   const raw = document.getElementById("admin-json-input").value.trim();
-  if (!raw) return alert("Pehle JSON box me content paste karein ya purana data 'Edit JSON' se load karein!");
+  if (!raw) return alert("Please paste JSON content or load an existing date using 'Edit JSON' first.");
   const data = JSON.parse(raw);
 
   const win = window.open("", "_blank");
