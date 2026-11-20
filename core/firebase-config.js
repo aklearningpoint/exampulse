@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const ADMIN_EMAIL = "APNA_ADMIN_GMAIL_YAHAN_LIKHEIN";
+export const ADMIN_EMAIL = "ak415958@gmail.com";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCbLDab5Az_16wnWN2nq0UhBYn1VcKEOMw",
