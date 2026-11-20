@@ -39,11 +39,11 @@
       <div id="feed-container"></div>
     </section>
 
-    <!-- View 2: Tests (Next Step me connect hoga) -->
+    <!-- View 2: Tests -->
     <section id="view-tests" class="hidden">
       <div id="quiz-container" class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
-        <p class="font-bold text-slate-800">Mock Test Engine Ready</p>
-        <p class="text-xs text-slate-500 mt-1">Agle step me quiz module yahan load hoga.</p>
+        <p class="font-bold text-slate-800">Mock Test Engine</p>
+        <p class="text-xs text-slate-500 mt-1">Interactive quizzes will load here.</p>
       </div>
     </section>
 
@@ -51,7 +51,7 @@
     <section id="view-vault" class="hidden">
       <div class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
         <p class="font-bold text-slate-800">Static GK Vault & Monthly PDF Store</p>
-        <p class="text-xs text-slate-500 mt-1">Yahan subject notes aur PDFs dikhenge.</p>
+        <p class="text-xs text-slate-500 mt-1">Subject notes and downloadable PDFs will appear here.</p>
       </div>
     </section>
 
@@ -59,14 +59,14 @@
     <section id="view-admin" class="hidden">
       <div class="bg-slate-900 text-white rounded-2xl p-4 mb-4">
         <h2 class="font-bold text-base">Creator Studio (Admin)</h2>
-        <p class="text-xs text-slate-400">AI JSON paste karein -> Live Publish ya YouTube PPT banayein</p>
+        <p class="text-xs text-slate-400">Paste AI JSON to publish live content or generate presentation slides.</p>
       </div>
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
         <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-20","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
         <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
         <div class="grid grid-cols-2 gap-2 mt-3">
           <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
-          <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">YouTube PPT Slides</button>
+          <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">Generate PPT Slides</button>
         </div>
       </div>
       <div class="bg-white rounded-2xl p-4 border border-slate-200">
@@ -82,7 +82,7 @@
       <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
         <span id="modal-category" class="text-xs font-bold text-blue-700 uppercase">CATEGORY</span>
         <div class="flex gap-2">
-          <button id="lang-toggle-btn" onclick="window.toggleAnalysisLang()" class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">हिंदी में पढ़ें</button>
+          <button id="lang-toggle-btn" onclick="window.toggleAnalysisLang()" class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">Switch to Hindi</button>
           <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold">✕</button>
         </div>
       </div>
@@ -116,15 +116,12 @@
 
     let currentUser = null;
 
-    // Initial Load
     loadDailyFeed();
 
-    // Filter Pills
     document.querySelectorAll(".exam-pill").forEach(btn => {
       btn.addEventListener("click", () => setExamFilter(btn.dataset.exam));
     });
 
-    // Tab Switcher
     window.switchTab = function(tab) {
       ["feed", "tests", "vault", "admin"].forEach(v => {
         document.getElementById(`view-${v}`).classList.add("hidden");
@@ -133,7 +130,6 @@
       document.getElementById("filter-bar").style.display = tab === "feed" ? "flex" : "none";
     };
 
-    // Auth State
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
       const loginBtn = document.getElementById("user-login-btn");
@@ -146,13 +142,12 @@
 
     document.getElementById("user-login-btn").addEventListener("click", async () => {
       if (currentUser) {
-        if (confirm("Logout karna chahte hain?")) await signOut(auth);
+        if (confirm("Are you sure you want to sign out?")) await signOut(auth);
       } else {
         await signInWithPopup(auth, provider);
       }
     });
 
-    // Admin Studio Access Check
     document.getElementById("admin-key-btn").addEventListener("click", async () => {
       if (!currentUser) {
         const res = await signInWithPopup(auth, provider);
@@ -162,7 +157,7 @@
         window.switchTab("admin");
         loadRecentAdminDocs();
       } else {
-        alert("Access Restricted: Yeh Creator Studio sirf Admin ke liye hai.");
+        alert("Access Restricted: Creator Studio is only accessible to authorized administrators.");
       }
     });
 
