@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ExamPulse - Daily GK, Analysis & Mock Tests</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 select-none pb-20">
+
+  <!-- Top Header -->
+  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center font-black text-base">EP</div>
+      <div>
+        <h1 class="font-extrabold text-base tracking-tight text-slate-900 leading-none">ExamPulse</h1>
+        <p id="feed-date-label" class="text-[10px] text-slate-400 font-medium mt-0.5">Daily GK & Analysis</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="user-login-btn" class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">Sign In</button>
+      <button id="admin-key-btn" title="Creator Studio" class="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-sm">🔑</button>
+    </div>
+  </header>
+
+  <!-- Exam Filter Bar -->
+  <div id="filter-bar" class="bg-slate-50 px-4 py-2.5 flex gap-2 overflow-x-auto border-b border-slate-200/60">
+    <button data-exam="ALL" class="exam-pill px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white whitespace-nowrap">All Exams</button>
+    <button data-exam="SSC" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">SSC</button>
+    <button data-exam="Railway" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">Railway</button>
+    <button data-exam="Banking" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">Banking</button>
+    <button data-exam="UPSC/PCS" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">UPSC/PCS</button>
+  </div>
+
+  <!-- Main Content Views -->
+  <main class="max-w-xl mx-auto p-4">
+    <!-- View 1: Daily Feed -->
+    <section id="view-feed">
+      <div id="feed-container"></div>
+    </section>
+
+    <!-- View 2: Tests (Next Step me connect hoga) -->
+    <section id="view-tests" class="hidden">
+      <div id="quiz-container" class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
+        <p class="font-bold text-slate-800">Mock Test Engine Ready</p>
+        <p class="text-xs text-slate-500 mt-1">Agle step me quiz module yahan load hoga.</p>
+      </div>
+    </section>
+
+    <!-- View 3: Static GK & PDF Store -->
+    <section id="view-vault" class="hidden">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 text-center">
+        <p class="font-bold text-slate-800">Static GK Vault & Monthly PDF Store</p>
+        <p class="text-xs text-slate-500 mt-1">Yahan subject notes aur PDFs dikhenge.</p>
+      </div>
+    </section>
+
+    <!-- View 4: Built-in Creator Admin Studio -->
+    <section id="view-admin" class="hidden">
+      <div class="bg-slate-900 text-white rounded-2xl p-4 mb-4">
+        <h2 class="font-bold text-base">Creator Studio (Admin)</h2>
+        <p class="text-xs text-slate-400">AI JSON paste karein -> Live Publish ya YouTube PPT banayein</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
+        <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-20","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+        <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
+          <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">YouTube PPT Slides</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-slate-200">
+        <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Recent Published Content (Edit / Delete)</h3>
+        <div id="admin-recent-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Deep Analysis Modal -->
+  <div id="analysis-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+        <span id="modal-category" class="text-xs font-bold text-blue-700 uppercase">CATEGORY</span>
+        <div class="flex gap-2">
+          <button id="lang-toggle-btn" onclick="window.toggleAnalysisLang()" class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">हिंदी में पढ़ें</button>
+          <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold">✕</button>
+        </div>
+      </div>
+      <h2 id="modal-title" class="font-extrabold text-lg text-slate-900 leading-snug mb-3"></h2>
+      <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 mb-3">
+        <p class="text-xs font-bold text-slate-800 uppercase mb-2">📌 Key Exam Facts</p>
+        <ul id="modal-facts" class="text-xs text-slate-700 leading-relaxed"></ul>
+      </div>
+      <div class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 mb-4">
+        <p class="text-xs font-bold text-amber-900 uppercase mb-1">🌐 360° Static GK Link</p>
+        <p id="modal-static" class="text-xs text-amber-950 leading-relaxed"></p>
+      </div>
+      <button onclick="document.getElementById('analysis-modal').classList.add('hidden'); window.switchTab('tests');" class="w-full bg-slate-900 text-white font-bold text-xs py-3.5 rounded-xl">
+        Practice MCQs on This Topic →
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex justify-around py-2">
+    <button onclick="window.switchTab('feed')" class="nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
+    <button onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
+    <button onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & PDF</button>
+  </nav>
+
+  <!-- App Wiring -->
+  <script type="module">
+    import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, ADMIN_EMAIL } from "./core/firebase-config.js";
+    import { loadDailyFeed, setExamFilter } from "./modules/feed/feed-ui.js";
+    import { publishFromJSON, loadRecentAdminDocs, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
+
+    let currentUser = null;
+
+    // Initial Load
+    loadDailyFeed();
+
+    // Filter Pills
+    document.querySelectorAll(".exam-pill").forEach(btn => {
+      btn.addEventListener("click", () => setExamFilter(btn.dataset.exam));
+    });
+
+    // Tab Switcher
+    window.switchTab = function(tab) {
+      ["feed", "tests", "vault", "admin"].forEach(v => {
+        document.getElementById(`view-${v}`).classList.add("hidden");
+      });
+      document.getElementById(`view-${tab}`).classList.remove("hidden");
+      document.getElementById("filter-bar").style.display = tab === "feed" ? "flex" : "none";
+    };
+
+    // Auth State
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      const loginBtn = document.getElementById("user-login-btn");
+      if (user) {
+        loginBtn.innerText = user.displayName.split(" ")[0];
+      } else {
+        loginBtn.innerText = "Sign In";
+      }
+    });
+
+    document.getElementById("user-login-btn").addEventListener("click", async () => {
+      if (currentUser) {
+        if (confirm("Logout karna chahte hain?")) await signOut(auth);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
+    });
+
+    // Admin Studio Access Check
+    document.getElementById("admin-key-btn").addEventListener("click", async () => {
+      if (!currentUser) {
+        const res = await signInWithPopup(auth, provider);
+        currentUser = res.user;
+      }
+      if (currentUser && currentUser.email === ADMIN_EMAIL) {
+        window.switchTab("admin");
+        loadRecentAdminDocs();
+      } else {
+        alert("Access Restricted: Yeh Creator Studio sirf Admin ke liye hai.");
+      }
+    });
+
+    document.getElementById("publish-json-btn").addEventListener("click", publishFromJSON);
+    document.getElementById("gen-ppt-btn").addEventListener("click", generateYouTubeSlides);
+  </script>
+</body>
+</html>
