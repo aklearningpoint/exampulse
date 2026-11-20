@@ -22,8 +22,8 @@ export async function loadDailyFeed(dateStr = null) {
     if (!targetDoc || !targetDoc.articles) {
       container.innerHTML = `
         <div class="bg-white rounded-2xl p-6 text-center border border-slate-200 shadow-sm">
-          <p class="text-slate-600 font-medium">Abhi koi news publish nahi hui hai.</p>
-          <p class="text-xs text-slate-400 mt-1">Admin key icon par tap karke aaj ka JSON publish karein.</p>
+          <p class="text-slate-600 font-medium">No current affairs published yet.</p>
+          <p class="text-xs text-slate-400 mt-1">Tap the admin key icon in the top-right corner to publish daily content.</p>
         </div>`;
       return;
     }
@@ -55,7 +55,7 @@ function renderArticles() {
     : currentArticles.filter(a => (a.exams || []).includes(currentFilter));
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">Is exam category ke liye aaj koi specific news nahi hai.</div>`;
+    container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">No articles available for this exam category today.</div>`;
     return;
   }
 
@@ -98,7 +98,7 @@ function renderAnalysisContent(item) {
   modal.dataset.idx = currentArticles.indexOf(item);
   const isEn = currentLang === "EN";
 
-  document.getElementById("lang-toggle-btn").innerText = isEn ? "हिंदी में पढ़ें" : "Read in English";
+  document.getElementById("lang-toggle-btn").innerText = isEn ? "Switch to Hindi" : "Switch to English";
   document.getElementById("modal-category").innerText = item.category || "CURRENT AFFAIRS";
   document.getElementById("modal-title").innerText = isEn ? item.title_en : (item.title_hi || item.title_en);
 
