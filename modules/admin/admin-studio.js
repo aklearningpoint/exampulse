@@ -1,7 +1,7 @@
 import { db, doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
 import { loadDailyFeed } from "../feed/feed-ui.js";
 
-// 1. Publish Daily CA & Quiz
+// 1. Publish Daily CA & Quiz (Appends to existing date instead of overwriting)
 export async function publishFromJSON() {
   const raw = document.getElementById("admin-json-input").value.trim();
   const statusEl = document.getElementById("admin-status");
@@ -13,27 +13,41 @@ export async function publishFromJSON() {
       throw new Error("JSON must include 'date' (YYYY-MM-DD) and an 'articles' array.");
     }
 
-    statusEl.innerText = "Publishing Daily Feed & Quiz...";
-    await setDoc(doc(db, "daily_feed", data.date), {
+    statusEl.innerText = "Merging & Publishing to Firebase...";
+
+    // Check if document for this date already exists -> Append articles
+    const feedRef = doc(db, "daily_feed", data.date);
+    const existingFeed = await getDoc(feedRef);
+    const prevArticles = existingFeed.exists() ? (existingFeed.data().articles || []) : [];
+    const mergedArticles = [...prevArticles, ...data.articles];
+
+    await setDoc(feedRef, {
       date: data.date,
-      articles: data.articles,
+      articles: mergedArticles,
       updatedAt: new Date().toISOString()
     });
 
+    // Check if quiz for this date already exists -> Append questions
     if (data.questions && data.questions.length > 0) {
-      await setDoc(doc(db, "quizzes", `quiz_${data.date}`), {
+      const quizRef = doc(db, "quizzes", `quiz_${data.date}`);
+      const existingQuiz = await getDoc(quizRef);
+      const prevQuestions = existingQuiz.exists() ? (existingQuiz.data().questions || []) : [];
+      const mergedQuestions = [...prevQuestions, ...data.questions];
+
+      await setDoc(quizRef, {
         id: `quiz_${data.date}`,
         date: data.date,
         title: `Daily CA Quiz (${data.date})`,
         category: "Daily CA",
-        duration_mins: 5,
+        duration_mins: Math.max(5, Math.ceil(mergedQuestions.length * 0.6)),
         negative_marking: 0.25,
-        questions: data.questions
+        questions: mergedQuestions
       });
     }
 
-    statusEl.innerText = `Published successfully for ${data.date}.`;
-    loadDailyFeed(data.date);
+    statusEl.innerText = `Published! Total ${mergedArticles.length} articles active for ${data.date}.`;
+    document.getElementById("admin-json-input").value = "";
+    loadDailyFeed();
     loadRecentAdminDocs();
   } catch (err) {
     statusEl.innerText = `Error: ${err.message}`;
@@ -68,7 +82,7 @@ export async function publishStaticNote() {
 
 // 3. Publish PDF or Course to Store
 export async function publishStoreItem() {
-  const type = document.getElementById("store-type-select").value; // "pdf" or "course"
+  const type = document.getElementById("store-type-select").value;
   const title = document.getElementById("store-title-input").value.trim();
   const desc = document.getElementById("store-desc-input").value.trim();
   const price = parseFloat(document.getElementById("store-price-input").value) || 0;
@@ -102,7 +116,7 @@ export async function publishStoreItem() {
 export async function loadRecentAdminDocs() {
   const listEl = document.getElementById("admin-recent-list");
   if (!listEl) return;
-  const q = query(collection(db, "daily_feed"), orderBy("date", "desc"), limit(5));
+  const q = query(collection(db, "daily_feed"), orderBy("date", "desc"), limit(10));
   const snap = await getDocs(q);
 
   listEl.innerHTML = snap.docs.map(d => {
@@ -149,7 +163,7 @@ window.loadDocToEditor = async function(dateStr) {
     questions: quizSnap.exists() ? quizSnap.data().questions : []
   };
   document.getElementById("admin-json-input").value = JSON.stringify(combined, null, 2);
-  document.getElementById("admin-status").innerText = `Loaded ${dateStr} into editor.`;
+  document.getElementById("admin-status").innerText = `Loaded ${dateStr} into editor (Note: Editing here will append unless you delete old date first).`;
 };
 
 window.deleteFeedDoc = async function(dateStr) {
