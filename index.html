@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ExamPulse - Daily GK, Analysis & Mock Tests</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch((err) => console.warn("SW error:", err));
+    }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 text-slate-900 select-none pb-20">
@@ -64,7 +71,7 @@
       <!-- Sub-Tab 1: Daily CA & Quiz -->
       <div id="admin-panel-ca">
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
-          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-20","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-22","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
           <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
           <div class="grid grid-cols-2 gap-2 mt-3">
             <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
@@ -197,7 +204,7 @@
       currentUser = user;
       const loginBtn = document.getElementById("user-login-btn");
       if (user) {
-        loginBtn.innerText = user.displayName.split(" ")[0];
+        loginBtn.innerText = user.displayName ? user.displayName.split(" ")[0] : "Account";
       } else {
         loginBtn.innerText = "Sign In";
       }
