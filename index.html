@@ -70,10 +70,17 @@
         </div>
       </div>
 
-      <!-- Sub-Tab 1: Daily CA & Quiz -->
+           <!-- Sub-Tab 1: Daily CA & Quiz -->
       <div id="admin-panel-ca">
         <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
-          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-22","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold uppercase text-slate-500">AI JSON Payload</span>
+            <div class="flex gap-1.5">
+              <button type="button" onclick="navigator.clipboard.readText().then(t => document.getElementById('admin-json-input').value = t)" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold">Paste</button>
+              <button type="button" onclick="document.getElementById('admin-json-input').value = ''; document.getElementById('admin-status').innerText = '';" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold">Clear</button>
+            </div>
+          </div>
+          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-23","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
           <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
           <div class="grid grid-cols-2 gap-2 mt-3">
             <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
