@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /modules/admin/
+Disallow: /core/
+
+Sitemap: https://aklearningpoint.github.io/exampulse/sitemap.xml
