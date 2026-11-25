@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.aklearningpoint.twa",
+      "sha256_cert_fingerprints": [
+        "EC:78:72:0B:30:DD:47:19:90:3F:3B:A1:F7:43:0D:0C:D4:DD:36:4F:E2:8B:DE:36:0B:60:9D:DD:39:7B:4B:90"
+      ]
+    }
+  }
+]
