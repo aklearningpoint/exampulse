@@ -1,4 +1,4 @@
-const CACHE_NAME = "exampulse-v1";
+const CACHE_NAME = "exampulse-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./modules/quiz/quiz-engine.js",
   "./modules/vault/vault-ui.js",
   "./modules/admin/admin-studio.js"
+  "./assets/icons/logo.png"
 ];
 
 self.addEventListener("install", (e) => {
