@@ -37,39 +37,85 @@
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch((err) => console.warn("SW error:", err));
     }
+    if (localStorage.getItem("ep_theme") === "dark") {
+      document.documentElement.classList.add("dark");
+    }
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: "class" };
+  </script>
 </head>
-<body class="bg-slate-100 text-slate-900 select-none pb-20">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none pb-24 transition-colors duration-200">
 
-  <!-- Top Header -->
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <img src="./assets/icons/logo.png" alt="ExamPulse Logo" class="w-9 h-9 rounded-xl object-cover border border-slate-200 shadow-sm" />
+  <!-- Gamified Premium Top Header -->
+  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3.5 py-2.5 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <img src="./assets/icons/logo.png" alt="ExamPulse Logo" class="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm" />
       <div>
-        <h1 class="font-extrabold text-base tracking-tight text-slate-900 leading-none">ExamPulse</h1>
-        <p id="feed-date-label" class="text-[10px] text-slate-400 font-medium mt-0.5">Daily GK & Analysis</p>
+        <div class="flex items-center gap-1.5">
+          <h1 class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-none">ExamPulse</h1>
+          <span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[9px] font-extrabold tracking-wide">PRO</span>
+        </div>
+        <p id="feed-date-label" class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Daily GK & Analysis</p>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <button id="user-login-btn" class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">Sign In</button>
-      <button id="admin-key-btn" title="Creator Studio" class="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-sm">🔑</button>
+
+    <div class="flex items-center gap-1.5">
+      <!-- Streak & XP Badges -->
+      <div class="hidden xs:flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50 dark:bg-orange-500/15 border border-orange-200/80 dark:border-orange-500/30 text-[11px] font-bold text-orange-700 dark:text-orange-300" title="Daily Study Streak">
+        🔥 <span id="header-streak">1</span>d
+      </div>
+      <div class="flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200/80 dark:border-indigo-500/30 text-[11px] font-bold text-indigo-700 dark:text-indigo-300" title="Knowledge XP">
+        ⚡ <span id="header-xp">0</span>
+      </div>
+      <!-- Night Study Mode Toggle -->
+      <button id="theme-toggle-btn" title="Night Study Mode" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs">🌙</button>
+      <!-- User Sign In -->
+      <button id="user-login-btn" class="px-2.5 py-1.5 rounded-full bg-slate-900 dark:bg-slate-800 text-white text-[11px] font-semibold">Sign In</button>
+      <!-- Admin Key -->
+      <button id="admin-key-btn" title="Creator Studio" class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs">🔑</button>
     </div>
   </header>
 
-  <!-- Exam Filter Bar -->
-  <div id="filter-bar" class="bg-slate-50 px-4 py-2.5 flex gap-2 overflow-x-auto border-b border-slate-200/60">
-    <button data-exam="ALL" class="exam-pill px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white whitespace-nowrap">All Exams</button>
-    <button data-exam="SSC" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">SSC</button>
-    <button data-exam="Railway" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">Railway</button>
-    <button data-exam="Banking" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">Banking</button>
-    <button data-exam="UPSC/PCS" class="exam-pill px-4 py-1.5 rounded-full text-xs font-medium bg-white text-slate-600 border border-slate-200 whitespace-nowrap">UPSC/PCS</button>
+  <!-- Exam & Saved Filter Bar -->
+  <div id="filter-bar" class="bg-white/80 dark:bg-slate-900/80 px-3.5 py-2.5 flex gap-2 overflow-x-auto border-b border-slate-200/70 dark:border-slate-800">
+    <button data-exam="ALL" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 whitespace-nowrap">All Exams</button>
+    <button data-exam="SAVED" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">⭐ Saved (<span id="saved-count-badge">0</span>)</button>
+    <button data-exam="SSC" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">SSC</button>
+    <button data-exam="Railway" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">Railway</button>
+    <button data-exam="Banking" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">Banking</button>
+    <button data-exam="UPSC/PCS" class="exam-pill px-3.5 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">UPSC/PCS</button>
   </div>
 
   <!-- Main Content Views -->
-  <main class="max-w-xl mx-auto p-4">
+  <main class="max-w-xl mx-auto p-3.5">
     <!-- View 1: Daily Feed -->
     <section id="view-feed">
+      <!-- Daily Mission & Audio Briefing Banner -->
+      <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 mb-3.5 shadow-md border border-slate-700/70">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">🎯 Today's Aspirant Mission</span>
+            <p id="mission-status-text" class="text-xs font-semibold text-slate-200 mt-0.5">Read 5 Current Affairs today (+50 XP)</p>
+          </div>
+          <span id="mission-percent-badge" class="px-2.5 py-1 rounded-xl bg-white/10 text-amber-300 font-extrabold text-xs">0/5</span>
+        </div>
+        <!-- Progress Bar -->
+        <div class="w-full h-2 bg-slate-700/80 rounded-full overflow-hidden mb-3">
+          <div id="mission-progress-bar" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <!-- Quick Audio Revision & Daily Test Strip -->
+        <div class="grid grid-cols-2 gap-2">
+          <button id="audio-brief-btn" onclick="window.toggleAudioBriefing()" class="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white text-[11px] font-bold py-2 px-3 rounded-xl active:scale-95 transition">
+            <span id="audio-brief-icon">🎧</span> <span id="audio-brief-label">Listen Headlines</span>
+          </button>
+          <button onclick="window.switchTab('tests')" class="flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 text-[11px] font-extrabold py-2 px-3 rounded-xl active:scale-95 transition">
+            <span>⚡</span> Start Daily Mock
+          </button>
+        </div>
+      </div>
+
       <div id="feed-container"></div>
     </section>
 
@@ -97,24 +143,24 @@
 
       <!-- Sub-Tab 1: Daily CA & Quiz -->
       <div id="admin-panel-ca">
-        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
-          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-22","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
+          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-22","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-950 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none"></textarea>
           <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
           <div class="grid grid-cols-2 gap-2 mt-3">
             <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
             <button id="gen-ppt-btn" class="bg-amber-500 text-slate-950 text-xs font-bold py-3 rounded-xl">Generate PPT Slides</button>
           </div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-slate-200">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
           <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Recent Published Dates (Edit / Delete)</h3>
           <div id="admin-recent-list"></div>
         </div>
       </div>
 
       <!-- Sub-Tab 2: Static GK Publisher -->
-      <div id="admin-panel-static" class="hidden bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+      <div id="admin-panel-static" class="hidden bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
         <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Publish Static GK Note</h3>
-        <select id="static-subject-select" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5">
+        <select id="static-subject-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5">
           <option value="history">Indian History</option>
           <option value="polity">Indian Polity</option>
           <option value="geography">Geography</option>
@@ -122,28 +168,28 @@
           <option value="science">General Science</option>
           <option value="art">Art & Culture</option>
         </select>
-        <input id="static-title-input" type="text" placeholder="Topic Title (e.g., Important Articles of Indian Constitution)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
-        <textarea id="static-content-input" rows="6" placeholder="Write concise exam-oriented static GK points..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2"></textarea>
+        <input id="static-title-input" type="text" placeholder="Topic Title (e.g., Important Articles of Indian Constitution)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+        <textarea id="static-content-input" rows="6" placeholder="Write concise exam-oriented static GK points..." class="w-full p-3 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2"></textarea>
         <p id="static-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
-        <button id="publish-static-btn" class="w-full bg-slate-900 text-white text-xs font-bold py-3 rounded-xl">Publish Static Note</button>
+        <button id="publish-static-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Publish Static Note</button>
       </div>
 
       <!-- Sub-Tab 3: PDF & Course Store Publisher -->
       <div id="admin-panel-store" class="hidden">
-        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
           <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Add PDF Digest or Course</h3>
-          <select id="store-type-select" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5">
+          <select id="store-type-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5">
             <option value="pdf">PDF Study Material / Monthly Digest</option>
             <option value="course">Video / Complete Exam Course</option>
           </select>
-          <input id="store-title-input" type="text" placeholder="Title (e.g., November 2026 Current Affairs Digest)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
-          <input id="store-desc-input" type="text" placeholder="Short Description (e.g., 300+ MCQs + Static Links)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
-          <input id="store-price-input" type="number" placeholder="Price in INR (Enter 0 for Free)" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2.5" />
-          <input id="store-url-input" type="url" placeholder="Google Drive / Course Access URL" class="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl mb-2" />
+          <input id="store-title-input" type="text" placeholder="Title (e.g., November 2026 Current Affairs Digest)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="store-desc-input" type="text" placeholder="Short Description (e.g., 300+ MCQs + Static Links)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="store-price-input" type="number" placeholder="Price in INR (Enter 0 for Free)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="store-url-input" type="url" placeholder="Google Drive / Course Access URL" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2" />
           <p id="store-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
-          <button id="publish-store-btn" class="w-full bg-slate-900 text-white text-xs font-bold py-3 rounded-xl">Add to Store</button>
+          <button id="publish-store-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Add to Store</button>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-slate-200">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
           <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Active Store Listings</h3>
           <div id="admin-store-list"></div>
         </div>
@@ -152,33 +198,33 @@
   </main>
 
   <!-- Deep Analysis Modal -->
-  <div id="analysis-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center">
-    <div class="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-        <span id="modal-category" class="text-xs font-bold text-blue-700 uppercase">CATEGORY</span>
+  <div id="analysis-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-xl rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] overflow-y-auto border-t sm:border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+        <span id="modal-category" class="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase">CATEGORY</span>
         <div class="flex gap-2">
-          <button id="lang-toggle-btn" onclick="window.toggleAnalysisLang()" class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">Switch to Hindi</button>
-          <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold">✕</button>
+          <button id="lang-toggle-btn" onclick="window.toggleAnalysisLang()" class="px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 text-xs font-bold">Switch to Hindi</button>
+          <button onclick="document.getElementById('analysis-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">✕</button>
         </div>
       </div>
-      <h2 id="modal-title" class="font-extrabold text-lg text-slate-900 leading-snug mb-3"></h2>
-      <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 mb-3">
-        <p class="text-xs font-bold text-slate-800 uppercase mb-2">📌 Key Exam Facts</p>
-        <ul id="modal-facts" class="text-xs text-slate-700 leading-relaxed"></ul>
+      <h2 id="modal-title" class="font-extrabold text-lg text-slate-900 dark:text-white leading-snug mb-3"></h2>
+      <div class="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-3.5 border border-slate-200/70 dark:border-slate-700 mb-3">
+        <p class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase mb-2">📌 Key Exam Facts</p>
+        <ul id="modal-facts" class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed"></ul>
       </div>
-      <div class="bg-amber-50 rounded-2xl p-3.5 border border-amber-200 mb-4">
-        <p class="text-xs font-bold text-amber-900 uppercase mb-1">🌐 360° Static GK Link</p>
-        <p id="modal-static" class="text-xs text-amber-950 leading-relaxed"></p>
+      <div class="bg-amber-50 dark:bg-amber-500/10 rounded-2xl p-3.5 border border-amber-200 dark:border-amber-500/30 mb-4">
+        <p class="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase mb-1">🌐 360° Static GK Link</p>
+        <p id="modal-static" class="text-xs text-amber-950 dark:text-amber-200 leading-relaxed"></p>
       </div>
-      <button onclick="document.getElementById('analysis-modal').classList.add('hidden'); window.switchTab('tests');" class="w-full bg-slate-900 text-white font-bold text-xs py-3.5 rounded-xl">
+      <button onclick="document.getElementById('analysis-modal').classList.add('hidden'); window.switchTab('tests');" class="w-full bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 font-bold text-xs py-3.5 rounded-xl">
         Practice MCQs on This Topic →
       </button>
     </div>
   </div>
 
   <!-- Bottom Navigation -->
-  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex justify-around py-2">
-    <button id="nav-feed" onclick="window.switchTab('feed')" class="nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 flex justify-around py-2">
+    <button id="nav-feed" onclick="window.switchTab('feed')" class="nav-btn text-slate-900 dark:text-amber-400 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
     <button id="nav-tests" onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
     <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & Store</button>
   </nav>
@@ -192,6 +238,18 @@
     import { publishFromJSON, publishStaticNote, publishStoreItem, loadRecentAdminDocs, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
 
     let currentUser = null;
+
+    // Night Study Mode Toggle
+    const themeBtn = document.getElementById("theme-toggle-btn");
+    function syncThemeIcon() {
+      themeBtn.innerText = document.documentElement.classList.contains("dark") ? "☀️" : "🌙";
+    }
+    syncThemeIcon();
+    themeBtn.addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+      localStorage.setItem("ep_theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
+      syncThemeIcon();
+    });
 
     loadDailyFeed();
 
@@ -209,7 +267,7 @@
       ["feed", "tests", "vault"].forEach(n => {
         const el = document.getElementById(`nav-${n}`);
         el.className = n === tab
-          ? "nav-btn text-slate-900 font-bold flex flex-col items-center text-[11px]"
+          ? "nav-btn text-slate-900 dark:text-amber-400 font-bold flex flex-col items-center text-[11px]"
           : "nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]";
       });
 
