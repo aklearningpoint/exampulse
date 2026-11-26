@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc, addDoc, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const ADMIN_EMAIL = "ak415958@gmail.com";
 
@@ -25,5 +25,5 @@ enableIndexedDbPersistence(db).catch((err) => {
 
 export {
   signInWithPopup, signOut, onAuthStateChanged,
-  doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc, addDoc, where, serverTimestamp
+  doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc, addDoc, serverTimestamp
 };
