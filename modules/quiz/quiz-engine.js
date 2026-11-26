@@ -11,7 +11,7 @@ let timerInterval = null;
 let secondsLeft = 0;
 let totalDurationSecs = 0;
 let testLang = "BOTH"; // "BOTH", "EN", "HI"
-let isPaletteOpen = false;
+let isPaletteCollapsed = false; // Right-side palette stays open live
 let isPaperViewOpen = false;
 
 function toggleExamFocusMode(isExamActive) {
@@ -61,7 +61,7 @@ export async function loadQuizList() {
   if (timerInterval) clearInterval(timerInterval);
 
   const container = document.getElementById("quiz-container");
-  container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">Loading TCS iON Mock Tests...</div>`;
+  container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">Loading ExamPulse Mock Tests...</div>`;
 
   const mistakes = getMistakeVault();
 
@@ -74,7 +74,7 @@ export async function loadQuizList() {
         <div>
           <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-extrabold uppercase">🧠 Auto-Mistake Vault</span>
           <h3 class="font-bold text-sm mt-1">Revise Weak Questions (${mistakes.length} Qs)</h3>
-          <p class="text-[11px] text-slate-300 mt-0.5">Practice questions you missed in previous CBT mocks</p>
+          <p class="text-[11px] text-slate-300 mt-0.5">Practice questions you missed in previous mock tests</p>
         </div>
         <button onclick="window.startMistakeVaultTest()" class="px-3.5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-extrabold whitespace-nowrap active:scale-95 transition">
           Fix Mistakes →
@@ -93,7 +93,7 @@ export async function loadQuizList() {
     container.innerHTML = `
       ${mistakeBanner}
       <div class="mb-3 flex items-center justify-between">
-        <h2 class="font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">🖥️ TCS iON / SSC CBT Mock Tests</h2>
+        <h2 class="font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">🖥️ ExamPulse Live Mock Tests</h2>
         <span class="text-[11px] font-semibold text-slate-400">${snap.size} Tests</span>
       </div>
       ${snap.docs.map(d => {
@@ -104,7 +104,7 @@ export async function loadQuizList() {
           <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3 flex items-center justify-between gap-3">
             <div>
               <div class="flex items-center gap-1.5">
-                <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">TCS CBT</span>
+                <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">Live CBT</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">${quiz.category || "Daily CA"}</span>
                 <span class="text-[10px] font-semibold text-slate-400">${quiz.date || ""}</span>
               </div>
@@ -112,7 +112,7 @@ export async function loadQuizList() {
               <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">📋 ${qCount} Qs • ⏱ ${quiz.duration_mins || 5} Mins • ⚖️ +1 / -${neg}</p>
             </div>
             <button onclick="window.startQuiz('${d.id}')" class="px-4 py-2.5 rounded-xl bg-[#285577] hover:bg-[#1e425e] text-white text-xs font-extrabold whitespace-nowrap active:scale-95 transition">
-              Launch Exam
+              Start Exam
             </button>
           </div>`;
       }).join("")}
@@ -125,8 +125,8 @@ export async function loadQuizList() {
 window.startMistakeVaultTest = function() {
   const mistakes = getMistakeVault();
   if (!mistakes.length) return;
-  launchTCSEnvironment({
-    title: "Mistake Vault Revision CBT",
+  launchExamEnvironment({
+    title: "Mistake Vault Revision Test",
     category: "Weak Area Drill",
     duration_mins: Math.max(3, Math.ceil(mistakes.length * 0.6)),
     negative_marking: 0.25,
@@ -136,15 +136,15 @@ window.startMistakeVaultTest = function() {
 
 window.startQuiz = async function(quizId) {
   const container = document.getElementById("quiz-container");
-  container.innerHTML = `<div class="text-center py-16 text-slate-500 text-sm font-semibold">Loading TCS iON Exam Terminal...</div>`;
+  container.innerHTML = `<div class="text-center py-16 text-slate-500 text-sm font-semibold">Initializing ExamPulse Exam Console...</div>`;
 
   const snap = await getDoc(doc(db, "quizzes", quizId));
   if (!snap.exists()) return alert("Quiz not found.");
 
-  launchTCSEnvironment(snap.data());
+  launchExamEnvironment(snap.data());
 };
 
-function launchTCSEnvironment(quizData) {
+function launchExamEnvironment(quizData) {
   activeQuiz = quizData;
   currentQIndex = 0;
   userAnswers = {};
@@ -153,7 +153,7 @@ function launchTCSEnvironment(quizData) {
   questionTimes = {};
   lastTickTime = Date.now();
   testLang = "BOTH";
-  isPaletteOpen = false;
+  isPaletteCollapsed = false;
   isPaperViewOpen = false;
 
   totalDurationSecs = (activeQuiz.duration_mins || 5) * 60;
@@ -164,13 +164,13 @@ function launchTCSEnvironment(quizData) {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     secondsLeft--;
-    const timerEl = document.getElementById("tcs-timer");
+    const timerEl = document.getElementById("ep-exam-timer");
     if (timerEl) {
       const m = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
       const s = String(secondsLeft % 60).padStart(2, "0");
       timerEl.innerText = `${m}:${s}`;
       if (secondsLeft <= 60) {
-        timerEl.classList.add("text-red-600", "animate-pulse");
+        timerEl.classList.add("text-red-400", "animate-pulse");
       }
     }
     if (secondsLeft <= 0) {
@@ -179,7 +179,7 @@ function launchTCSEnvironment(quizData) {
     }
   }, 1000);
 
-  renderTCSScreen();
+  renderExamScreen();
 }
 
 function recordTimeSpent() {
@@ -189,28 +189,28 @@ function recordTimeSpent() {
   lastTickTime = now;
 }
 
-// Authentic TCS iON 5-State Palette Button Styling
-function getTCSPaletteStyle(idx) {
+// 5-State Live Palette Button Styling
+function getPaletteBtnStyle(idx) {
   const isAnswered = userAnswers[idx] !== undefined;
   const isMarked = markedReviewSet.has(idx);
   const isVisited = visitedSet.has(idx);
 
   if (isMarked && isAnswered) {
-    return "bg-[#5b2c83] text-white rounded-full relative after:content-[''] after:w-2.5 after:h-2.5 after:bg-[#28a745] after:rounded-full after:absolute after:bottom-0 after:right-0 after:border after:border-white";
+    return "bg-[#5b2c83] text-white rounded-full relative after:content-[''] after:w-2 after:h-2 after:bg-[#28a745] after:rounded-full after:absolute after:bottom-0 after:right-0 after:border after:border-white";
   }
   if (isMarked) {
     return "bg-[#5b2c83] text-white rounded-full";
   }
   if (isAnswered) {
-    return "bg-[#28a745] text-white rounded-t-lg rounded-b-none";
+    return "bg-[#28a745] text-white rounded-t-md rounded-b-none";
   }
   if (isVisited) {
-    return "bg-[#dc3545] text-white rounded-b-lg rounded-t-none";
+    return "bg-[#dc3545] text-white rounded-b-md rounded-t-none";
   }
-  return "bg-[#e9ecef] text-slate-800 border border-slate-300 rounded";
+  return "bg-white text-slate-800 border border-slate-300 rounded";
 }
 
-function renderTCSScreen() {
+function renderExamScreen() {
   visitedSet.add(currentQIndex);
   const container = document.getElementById("quiz-container");
   const questions = activeQuiz.questions || [];
@@ -219,13 +219,13 @@ function renderTCSScreen() {
   const neg = activeQuiz.negative_marking ?? 0.25;
 
   const user = auth.currentUser;
-  const candidateName = user && user.displayName ? user.displayName : "Aspirant";
+  const candidateName = user && user.displayName ? user.displayName.split(" ")[0] : "Aspirant";
   const candidatePhoto = user && user.photoURL ? user.photoURL : "./assets/icons/logo.png";
 
   const m = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const s = String(secondsLeft % 60).padStart(2, "0");
 
-  // TCS 5-Category Counts
+  // 5-Category Counts
   let ansCount = 0, notAnsCount = 0, notVisCount = 0, revOnlyCount = 0, ansRevCount = 0;
   questions.forEach((_, idx) => {
     const ans = userAnswers[idx] !== undefined;
@@ -239,154 +239,148 @@ function renderTCSScreen() {
   });
 
   container.innerHTML = `
-    <div class="min-h-screen flex flex-col bg-white text-slate-900 font-sans">
-      <!-- 1. TCS iON Top Dark Steel-Blue Bar -->
-      <div class="bg-[#285577] text-white px-3 py-2 flex items-center justify-between">
+    <div class="h-screen flex flex-col bg-white text-slate-900 font-sans overflow-hidden">
+      <!-- 1. ExamPulse Top Exam Header -->
+      <div class="bg-[#285577] text-white px-2.5 py-1.5 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2 min-w-0">
-          <button onclick="window.confirmExitTest()" class="px-2 py-1 rounded bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold">Exit</button>
+          <button onclick="window.confirmExitTest()" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold">Exit</button>
           <span class="text-xs font-bold truncate">${activeQuiz.title}</span>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button onclick="window.toggleQuestionPaper()" class="px-2.5 py-1 rounded bg-[#1b3b54] border border-white/20 text-[11px] font-semibold">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="window.toggleQuestionPaper()" class="px-2 py-0.5 rounded bg-[#1b3b54] border border-white/20 text-[10px] font-semibold">
             📄 Paper
           </button>
-          <button onclick="window.toggleQuestionPalette()" class="px-2.5 py-1 rounded bg-[#337ab7] border border-white/30 text-[11px] font-bold flex items-center gap-1">
-            <span>▦ Palette</span>
-          </button>
+          <span class="text-[11px] bg-black/30 px-2 py-0.5 rounded font-mono">
+            ⏱ <strong id="ep-exam-timer" class="text-amber-300">${m}:${s}</strong>
+          </span>
         </div>
       </div>
 
-      <!-- 2. Candidate Info & Live Countdown Strip -->
-      <div class="bg-[#f1f5f9] border-b border-slate-300 px-3 py-1.5 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <img src="${candidatePhoto}" alt="Candidate" class="w-8 h-8 rounded border border-slate-400 object-cover bg-white" />
-          <div class="leading-tight">
-            <p class="text-[11px] font-bold text-slate-800">${candidateName}</p>
-            <p class="text-[10px] text-slate-500">Section: <strong class="text-[#285577]">${activeQuiz.category || "General Awareness"}</strong></p>
+      <!-- 2. Split Workspace: Left Question Panel + Right Always-Open Palette -->
+      <div class="flex-1 flex min-h-0 relative">
+
+        <!-- LEFT PANEL: Question & Bottom Action Controls -->
+        <div class="flex-1 flex flex-col min-w-0 bg-white">
+          <!-- Sub-Header: Q Number, Marks & Language -->
+          <div class="bg-[#e8f0f7] border-b border-slate-300 px-2.5 py-1.5 flex items-center justify-between text-[10px] shrink-0">
+            <div class="font-bold text-slate-800">
+              Q.<span class="text-[#285577] text-xs font-extrabold">${currentQIndex + 1}</span>/${questions.length}
+              <span class="ml-1.5 text-slate-600">(+<span class="text-emerald-700 font-bold">1</span> / -<span class="text-red-600 font-bold">${neg}</span>)</span>
+            </div>
+            <select onchange="window.setExamLang(this.value)" class="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-800">
+              <option value="BOTH" ${testLang === "BOTH" ? "selected" : ""}>EN + हिं</option>
+              <option value="EN" ${testLang === "EN" ? "selected" : ""}>English</option>
+              <option value="HI" ${testLang === "HI" ? "selected" : ""}>हिन्दी</option>
+            </select>
+          </div>
+
+          <!-- Scrollable Question & Options -->
+          <div class="flex-1 p-2.5 overflow-y-auto bg-white">
+            <div class="border border-slate-300 rounded p-2.5 mb-2.5 bg-white">
+              ${testLang !== "HI" ? `<p class="font-semibold text-slate-900 text-[13px] sm:text-[15px] leading-snug mb-1.5">${q.question_en}</p>` : ""}
+              ${(testLang !== "EN" && q.question_hi) ? `<p class="text-slate-800 ${testLang === "HI" ? "font-semibold text-[13px] sm:text-[15px]" : "text-[11px] sm:text-xs border-t border-slate-200 pt-1.5"} leading-snug">${q.question_hi}</p>` : ""}
+            </div>
+
+            <!-- Options -->
+            <div class="space-y-1.5">
+              ${(q.options || []).map((opt, i) => {
+                const isSelected = selected === i;
+                return `
+                  <label onclick="window.selectOption(${i})" class="w-full p-2.5 rounded border cursor-pointer flex items-center gap-2 transition ${
+                    isSelected
+                      ? "bg-[#e7f3ff] border-[#337ab7] text-slate-950 font-bold"
+                      : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50"
+                  }">
+                    <span class="w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                      isSelected ? "border-[#337ab7]" : "border-slate-400"
+                    }">
+                      ${isSelected ? `<span class="w-2 h-2 rounded-full bg-[#337ab7]"></span>` : ""}
+                    </span>
+                    <span class="text-[11px] font-bold text-slate-500">(${i + 1})</span>
+                    <span class="text-xs leading-snug">${opt}</span>
+                  </label>`;
+              }).join("")}
+            </div>
+          </div>
+
+          <!-- Left Panel Bottom Action Bar -->
+          <div class="bg-[#f1f5f9] border-t border-slate-300 p-1.5 flex items-center justify-between gap-1 shrink-0">
+            <button onclick="window.markReviewAndNext()" class="px-2 py-2 rounded bg-white border border-slate-400 text-slate-800 text-[10px] font-bold active:bg-slate-200">
+              Review & Next
+            </button>
+            <button onclick="window.clearResponse()" class="px-2 py-2 rounded bg-white border border-slate-400 text-slate-800 text-[10px] font-bold active:bg-slate-200">
+              Clear
+            </button>
+            <button onclick="window.saveAndNext()" class="flex-1 py-2 rounded bg-[#337ab7] hover:bg-[#285577] text-white text-[11px] font-extrabold">
+              Save & Next
+            </button>
           </div>
         </div>
-        <div class="text-right leading-tight">
-          <p class="text-[10px] font-bold text-slate-600 uppercase">Time Left</p>
-          <p id="tcs-timer" class="font-mono text-sm font-extrabold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-300">${m}:${s}</p>
-        </div>
-      </div>
 
-      <!-- 3. Question Number, Marking Scheme & Language Bar -->
-      <div class="bg-[#e8f0f7] border-b border-slate-300 px-3 py-1.5 flex items-center justify-between text-[11px]">
-        <div class="font-bold text-slate-800">
-          Question No. <span class="text-[#285577] text-xs font-extrabold">${currentQIndex + 1}</span> of ${questions.length}
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-[10px] font-semibold text-slate-700">Marks: <span class="text-emerald-700 font-bold">+1</span> | <span class="text-red-600 font-bold">-${neg}</span></span>
-          <select onchange="window.setTCSTestLang(this.value)" class="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-[11px] font-bold text-slate-800">
-            <option value="BOTH" ${testLang === "BOTH" ? "selected" : ""}>EN + हिं</option>
-            <option value="EN" ${testLang === "EN" ? "selected" : ""}>English</option>
-            <option value="HI" ${testLang === "HI" ? "selected" : ""}>हिन्दी</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 4. Main Question & Options Canvas -->
-      <div class="flex-1 p-3.5 pb-24 overflow-y-auto bg-white">
-        <div class="border border-slate-300 rounded p-3.5 mb-3.5 bg-white">
-          ${testLang !== "HI" ? `<p class="font-semibold text-slate-900 text-[15px] leading-relaxed mb-2">${q.question_en}</p>` : ""}
-          ${(testLang !== "EN" && q.question_hi) ? `<p class="text-slate-800 ${testLang === "HI" ? "font-semibold text-[15px]" : "text-xs border-t border-slate-200 pt-2"} leading-relaxed">${q.question_hi}</p>` : ""}
-        </div>
-
-        <!-- Radio-Button Style Options -->
-        <div class="space-y-2">
-          ${(q.options || []).map((opt, i) => {
-            const isSelected = selected === i;
-            return `
-              <label onclick="window.selectOption(${i})" class="w-full p-3 rounded border cursor-pointer flex items-center gap-3 transition ${
-                isSelected
-                  ? "bg-[#e7f3ff] border-[#337ab7] text-slate-950 font-bold"
-                  : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50"
-              }">
-                <span class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                  isSelected ? "border-[#337ab7]" : "border-slate-400"
-                }">
-                  ${isSelected ? `<span class="w-2.5 h-2.5 rounded-full bg-[#337ab7]"></span>` : ""}
-                </span>
-                <span class="text-xs font-bold text-slate-500">(${i + 1})</span>
-                <span class="text-[13px] leading-snug">${opt}</span>
-              </label>`;
-          }).join("")}
-        </div>
-      </div>
-
-      <!-- 5. Authentic TCS iON Fixed Bottom Action Bar -->
-      <div class="fixed bottom-0 inset-x-0 z-40 bg-[#f1f5f9] border-t border-slate-300 px-2.5 py-2 flex items-center justify-between gap-1.5">
-        <button onclick="window.markReviewAndNext()" class="px-2.5 py-2.5 rounded bg-white border border-slate-400 text-slate-800 text-[11px] font-bold active:bg-slate-200">
-          Mark for Review & Next
+        <!-- COLLAPSE / EXPAND HANDLE TAB -->
+        <button onclick="window.toggleSidePalette()" title="Toggle Question Palette" class="w-4 bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0 border-l border-slate-400">
+          ${isPaletteCollapsed ? "◀" : "▶"}
         </button>
-        <button onclick="window.clearResponse()" class="px-2.5 py-2.5 rounded bg-white border border-slate-400 text-slate-800 text-[11px] font-bold active:bg-slate-200">
-          Clear Response
-        </button>
-        <button onclick="window.saveAndNext()" class="flex-1 py-2.5 rounded bg-[#337ab7] hover:bg-[#285577] text-white text-xs font-extrabold shadow-xs">
-          ${currentQIndex < questions.length - 1 ? "Save & Next" : "Save"}
-        </button>
-      </div>
 
-      <!-- 6. Slide-Over TCS iON Question Palette Drawer -->
-      ${isPaletteOpen ? `
-        <div class="fixed inset-0 z-50 bg-black/50 flex justify-end">
-          <div class="w-80 max-w-[88vw] bg-[#e8f0f7] h-full flex flex-col border-l border-slate-400 shadow-2xl">
-            <div class="bg-[#285577] text-white px-3 py-2.5 flex items-center justify-between">
-              <span class="text-xs font-bold">Question Palette</span>
-              <button onclick="window.toggleQuestionPalette()" class="px-2 py-0.5 rounded bg-white/20 text-xs font-bold">✕</button>
-            </div>
-
-            <!-- 5-Symbol Legend -->
-            <div class="bg-white p-2.5 border-b border-slate-300 grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-700">
-              <div class="flex items-center gap-1.5">
-                <span class="w-5 h-5 bg-[#28a745] text-white rounded-t flex items-center justify-center font-bold">${ansCount}</span> Answered
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-5 h-5 bg-[#dc3545] text-white rounded-b flex items-center justify-center font-bold">${notAnsCount}</span> Not Answered
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-5 h-5 bg-[#e9ecef] text-slate-800 border border-slate-300 rounded flex items-center justify-center font-bold">${notVisCount}</span> Not Visited
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="w-5 h-5 bg-[#5b2c83] text-white rounded-full flex items-center justify-center font-bold">${revOnlyCount}</span> Marked Review
-              </div>
-              <div class="col-span-2 flex items-center gap-1.5">
-                <span class="w-5 h-5 bg-[#5b2c83] text-white rounded-full flex items-center justify-center font-bold relative after:content-[''] after:w-2 after:h-2 after:bg-[#28a745] after:rounded-full after:absolute after:bottom-0 after:right-0">${ansRevCount}</span>
-                Answered & Marked for Review (Evaluated)
+        <!-- RIGHT PANEL: Permanent Live Question Palette -->
+        ${!isPaletteCollapsed ? `
+          <div class="w-[126px] sm:w-56 bg-[#e8f0f7] border-l border-slate-300 flex flex-col shrink-0">
+            <!-- Candidate Mini Profile -->
+            <div class="bg-[#f8fafc] p-1.5 border-b border-slate-300 flex items-center gap-1.5 shrink-0">
+              <img src="${candidatePhoto}" alt="User" class="w-6 h-6 rounded border border-slate-400 object-cover bg-white shrink-0" />
+              <div class="min-w-0 leading-tight">
+                <p class="text-[10px] font-extrabold text-slate-900 truncate">${candidateName}</p>
+                <p class="text-[8px] text-slate-500 truncate">${activeQuiz.category || "ExamPulse"}</p>
               </div>
             </div>
 
-            <!-- Section Title -->
-            <div class="bg-[#337ab7] text-white px-3 py-1 text-[11px] font-bold">
-              Choose a Question
+            <!-- Compact Live Status Legend -->
+            <div class="bg-white p-1.5 border-b border-slate-300 grid grid-cols-2 gap-1 text-[9px] font-bold text-slate-700 shrink-0">
+              <div class="flex items-center gap-1">
+                <span class="w-4 h-4 bg-[#28a745] text-white rounded-t flex items-center justify-center text-[9px]">${ansCount}</span> Ans
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="w-4 h-4 bg-[#dc3545] text-white rounded-b flex items-center justify-center text-[9px]">${notAnsCount}</span> Skip
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="w-4 h-4 bg-white text-slate-800 border border-slate-300 rounded flex items-center justify-center text-[9px]">${notVisCount}</span> Left
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="w-4 h-4 bg-[#5b2c83] text-white rounded-full flex items-center justify-center text-[9px]">${revOnlyCount + ansRevCount}</span> Rev
+              </div>
             </div>
 
-            <!-- Number Grid -->
-            <div class="flex-1 p-3 overflow-y-auto grid grid-cols-5 gap-2 content-start">
+            <!-- Section Banner -->
+            <div class="bg-[#337ab7] text-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide shrink-0">
+              Question Palette
+            </div>
+
+            <!-- Live Numbered Grid (Updates Instantly on Click!) -->
+            <div class="flex-1 p-1.5 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-1.5 content-start">
               ${questions.map((_, idx) => `
-                <button onclick="window.jumpToQuestion(${idx})" class="h-9 text-xs font-extrabold flex items-center justify-center ${getTCSPaletteStyle(idx)} ${idx === currentQIndex ? "ring-2 ring-slate-900" : ""}">
+                <button onclick="window.jumpToQuestion(${idx})" class="h-7 text-[11px] font-extrabold flex items-center justify-center transition ${getPaletteBtnStyle(idx)} ${idx === currentQIndex ? "ring-2 ring-slate-950" : ""}">
                   ${idx + 1}
                 </button>
               `).join("")}
             </div>
 
-            <!-- Palette Footer with Submit Button -->
-            <div class="p-3 bg-white border-t border-slate-300">
-              <button onclick="window.submitQuiz(false)" class="w-full py-2.5 rounded bg-[#28a745] hover:bg-emerald-700 text-white text-xs font-extrabold uppercase tracking-wide">
-                Submit Exam
+            <!-- Always-Visible Submit Button -->
+            <div class="p-1.5 bg-white border-t border-slate-300 shrink-0">
+              <button onclick="window.submitQuiz(false)" class="w-full py-2 rounded bg-[#28a745] hover:bg-emerald-700 text-white text-[11px] font-extrabold uppercase tracking-wide shadow-xs">
+                Submit
               </button>
             </div>
           </div>
-        </div>
-      ` : ""}
+        ` : ""}
 
-      <!-- 7. Full Question Paper View Modal -->
+      </div>
+
+      <!-- Full Question Paper Modal -->
       ${isPaperViewOpen ? `
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
           <div class="bg-white w-full max-w-xl max-h-[85vh] rounded-lg overflow-hidden flex flex-col border border-slate-400">
             <div class="bg-[#285577] text-white px-4 py-2.5 flex items-center justify-between">
-              <span class="text-xs font-bold">Full Question Paper View</span>
+              <span class="text-xs font-bold">ExamPulse — Full Question Paper</span>
               <button onclick="window.toggleQuestionPaper()" class="px-2 py-0.5 rounded bg-white/20 text-xs font-bold">Close ✕</button>
             </div>
             <div class="p-4 overflow-y-auto space-y-3 text-xs">
@@ -404,60 +398,54 @@ function renderTCSScreen() {
   `;
 }
 
-window.toggleQuestionPalette = function() {
-  isPaletteOpen = !isPaletteOpen;
-  renderTCSScreen();
+window.toggleSidePalette = function() {
+  isPaletteCollapsed = !isPaletteCollapsed;
+  renderExamScreen();
 };
 
 window.toggleQuestionPaper = function() {
   isPaperViewOpen = !isPaperViewOpen;
-  renderTCSScreen();
+  renderExamScreen();
 };
 
-window.setTCSTestLang = function(val) {
+window.setExamLang = function(val) {
   testLang = val;
-  renderTCSScreen();
+  renderExamScreen();
 };
 
 window.jumpToQuestion = function(idx) {
   recordTimeSpent();
   currentQIndex = idx;
-  isPaletteOpen = false;
-  renderTCSScreen();
+  renderExamScreen();
 };
 
+// Instantly turns the question GREEN in the right-side palette on tap
 window.selectOption = function(optIndex) {
   userAnswers[currentQIndex] = optIndex;
-  renderTCSScreen();
+  renderExamScreen();
 };
 
 window.clearResponse = function() {
   delete userAnswers[currentQIndex];
   markedReviewSet.delete(currentQIndex);
-  renderTCSScreen();
+  renderExamScreen();
 };
 
-// TCS iON "Save & Next"
 window.saveAndNext = function() {
   recordTimeSpent();
   if (currentQIndex < (activeQuiz.questions || []).length - 1) {
     currentQIndex++;
-  } else {
-    isPaletteOpen = true; // Last question par palette kholkar Submit dikhata hai
   }
-  renderTCSScreen();
+  renderExamScreen();
 };
 
-// TCS iON "Mark for Review & Next"
 window.markReviewAndNext = function() {
   recordTimeSpent();
   markedReviewSet.add(currentQIndex);
   if (currentQIndex < (activeQuiz.questions || []).length - 1) {
     currentQIndex++;
-  } else {
-    isPaletteOpen = true;
   }
-  renderTCSScreen();
+  renderExamScreen();
 };
 
 window.confirmExitTest = function() {
@@ -477,7 +465,6 @@ window.submitQuiz = function(isAutoSubmit = false) {
 
   recordTimeSpent();
   if (timerInterval) clearInterval(timerInterval);
-  isPaletteOpen = false;
   isPaperViewOpen = false;
   toggleExamFocusMode(false);
 
@@ -514,7 +501,7 @@ window.submitQuiz = function(isAutoSubmit = false) {
   container.innerHTML = `
     <div class="bg-gradient-to-br from-[#285577] via-slate-900 to-slate-950 text-white rounded-3xl p-5 mb-4 shadow-lg border border-slate-800">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] uppercase tracking-wider text-amber-400 font-extrabold">📊 TCS CBT Scorecard</span>
+        <span class="text-[10px] uppercase tracking-wider text-amber-400 font-extrabold">📊 ExamPulse Scorecard</span>
         <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">+${earnedXP} XP Earned</span>
       </div>
 
