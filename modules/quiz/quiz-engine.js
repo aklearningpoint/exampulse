@@ -16,6 +16,11 @@ let isPaletteCollapsed = false;
 let isPaperViewOpen = false;
 let lastResultPayload = null;
 
+// Exam-Specific Filter State
+let selectedTestExam = "ALL";
+let cachedQuizDocs = [];
+let examSpecificPools = { SSC: [], Railway: [], Banking: [], "UPSC/PCS": [] };
+
 function toggleExamFocusMode(isExamActive) {
   const header = document.querySelector("header");
   const nav = document.querySelector("nav");
@@ -58,6 +63,16 @@ function awardQuizXP(points) {
   if (xpEl) xpEl.innerText = updated;
 }
 
+function matchesExamTag(questionObj, targetExam) {
+  if (targetExam === "ALL") return true;
+  const tagStr = String(questionObj.exam_tag || (questionObj.exams || []).join(" ") || "ALL").toUpperCase();
+  if (tagStr === "ALL" || tagStr === "ALL EXAMS") return true;
+  if (targetExam === "UPSC/PCS") {
+    return tagStr.includes("UPSC") || tagStr.includes("PCS");
+  }
+  return tagStr.includes(targetExam.toUpperCase());
+}
+
 export async function loadQuizList() {
   toggleExamFocusMode(false);
   if (timerInterval) clearInterval(timerInterval);
@@ -65,72 +80,199 @@ export async function loadQuizList() {
   const container = document.getElementById("quiz-container");
   container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">Loading ExamPulse Mock Tests...</div>`;
 
-  const mistakes = getMistakeVault();
-
   try {
     const q = query(collection(db, "quizzes"), orderBy("date", "desc"), limit(15));
     const snap = await getDocs(q);
 
-    const mistakeBanner = mistakes.length > 0 ? `
-      <div class="bg-gradient-to-r from-rose-950 to-slate-900 text-white rounded-2xl p-4 mb-4 border border-rose-800/60 shadow-sm flex items-center justify-between">
-        <div>
-          <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-extrabold uppercase">🧠 Auto-Mistake Vault</span>
-          <h3 class="font-bold text-sm mt-1">Revise Weak Questions (${mistakes.length} Qs)</h3>
-          <p class="text-[11px] text-slate-300 mt-0.5">Practice questions you missed in previous mock tests</p>
-        </div>
-        <button onclick="window.startMistakeVaultTest()" class="px-3.5 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-extrabold whitespace-nowrap active:scale-95 transition">
-          Fix Mistakes →
-        </button>
-      </div>` : "";
+    cachedQuizDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    if (snap.empty) {
-      container.innerHTML = mistakeBanner + `
-        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200 dark:border-slate-800">
-          <p class="font-bold text-slate-800 dark:text-slate-200">No Quizzes Available Yet</p>
-          <p class="text-xs text-slate-500 mt-1">Published daily tests will appear here automatically.</p>
-        </div>`;
-      return;
-    }
+    // Build Exam-Specific Question Pools from recent 7 quizzes
+    examSpecificPools = { SSC: [], Railway: [], Banking: [], "UPSC/PCS": [] };
+    cachedQuizDocs.slice(0, 7).forEach(quiz => {
+      (quiz.questions || []).forEach(question => {
+        ["SSC", "Railway", "Banking", "UPSC/PCS"].forEach(exam => {
+          if (matchesExamTag(question, exam)) {
+            examSpecificPools[exam].push({ ...question, _sourceDate: quiz.date });
+          }
+        });
+      });
+    });
 
-    container.innerHTML = `
-      ${mistakeBanner}
-      <div class="mb-3 flex items-center justify-between">
-        <h2 class="font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">🖥️ ExamPulse Live Mock Tests</h2>
-        <span class="text-[11px] font-semibold text-slate-400">${snap.size} Tests</span>
-      </div>
-      ${snap.docs.map(d => {
-        const quiz = d.data();
-        const qCount = (quiz.questions || []).length;
-        const neg = quiz.negative_marking ?? 0.25;
-        const safeTitle = (quiz.title || "Mock Test").replace(/'/g, "\\'");
-        return `
-          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">Live CBT</span>
-                  <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">${quiz.category || "Daily CA"}</span>
-                  <span class="text-[10px] font-semibold text-slate-400">${quiz.date || ""}</span>
-                </div>
-                <h3 class="font-bold text-slate-900 dark:text-white text-sm mt-1.5 leading-snug">${quiz.title}</h3>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">📋 ${qCount} Qs • ⏱ ${quiz.duration_mins || 5} Mins • ⚖️ +1 / -${neg}</p>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
-              <button onclick="window.openStandaloneLeaderboard('${d.id}', '${safeTitle}')" class="py-2 rounded-xl bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 text-xs font-bold active:scale-95 transition">
-                🏆 Top Ranks
-              </button>
-              <button onclick="window.startQuiz('${d.id}')" class="py-2 rounded-xl bg-[#285577] hover:bg-[#1e425e] text-white text-xs font-extrabold active:scale-95 transition">
-                Start Exam →
-              </button>
-            </div>
-          </div>`;
-      }).join("")}
-    `;
+    renderQuizHub();
   } catch (err) {
     container.innerHTML = `<div class="text-red-500 text-xs p-4">Error loading quizzes: ${err.message}</div>`;
   }
 }
+
+window.setTestExamFilter = function(exam) {
+  selectedTestExam = exam;
+  renderQuizHub();
+};
+
+function renderQuizHub() {
+  const container = document.getElementById("quiz-container");
+  const mistakes = getMistakeVault();
+  const exams = ["ALL", "SSC", "Railway", "Banking", "UPSC/PCS"];
+
+  const filterBarHtml = `
+    <div class="flex gap-1.5 overflow-x-auto pb-2.5 mb-3 border-b border-slate-200 dark:border-slate-800">
+      ${exams.map(ex => {
+        const active = selectedTestExam === ex;
+        const label = ex === "ALL" ? "All Exams" : ex;
+        return `
+          <button onclick="window.setTestExamFilter('${ex}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+            active
+              ? "bg-[#285577] text-white shadow-xs"
+              : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+          }">
+            ${label}
+          </button>`;
+      }).join("")}
+    </div>
+  `;
+
+  const mistakeBanner = mistakes.length > 0 ? `
+    <div class="bg-gradient-to-r from-rose-950 to-slate-900 text-white rounded-2xl p-3.5 mb-3.5 border border-rose-800/60 shadow-sm flex items-center justify-between">
+      <div>
+        <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-extrabold uppercase">🧠 Auto-Mistake Vault</span>
+        <h3 class="font-bold text-sm mt-1">Revise Weak Questions (${mistakes.length} Qs)</h3>
+      </div>
+      <button onclick="window.startMistakeVaultTest()" class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-extrabold whitespace-nowrap">
+        Fix Now →
+      </button>
+    </div>` : "";
+
+  // Dedicated Exam-Specific Special Mock Section
+  const examsToShow = selectedTestExam === "ALL" ? ["SSC", "Railway", "Banking", "UPSC/PCS"] : [selectedTestExam];
+  const specialMocksHtml = examsToShow.map(ex => {
+    const pool = examSpecificPools[ex] || [];
+    if (pool.length === 0) return "";
+    const qCount = Math.min(pool.length, 25);
+    const neg = ex === "Railway" ? 0.33 : ex === "UPSC/PCS" ? 0.33 : 0.25;
+    return `
+      <div class="bg-gradient-to-br from-slate-900 to-[#1e3a52] text-white rounded-2xl p-4 mb-3 border border-slate-700 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-extrabold uppercase">🎯 ${ex} Special</span>
+              <span class="text-[10px] text-slate-300 font-semibold">Exam-Focused Mock</span>
+            </div>
+            <h3 class="font-extrabold text-sm mt-1.5">${ex} Targeted Current Affairs & GK Test</h3>
+            <p class="text-[11px] text-slate-300 mt-0.5">📋 ${qCount} ${ex} Qs • ⏱ ${Math.max(5, Math.ceil(qCount * 0.6))} Mins • ⚖️ +1 / -${neg}</p>
+          </div>
+          <button onclick="window.startExamSpecificPoolTest('${ex}')" class="px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold whitespace-nowrap active:scale-95 transition">
+            Start ${ex} →
+          </button>
+        </div>
+      </div>`;
+  }).join("");
+
+  if (cachedQuizDocs.length === 0) {
+    container.innerHTML = filterBarHtml + mistakeBanner + `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200 dark:border-slate-800">
+        <p class="font-bold text-slate-800 dark:text-slate-200">No Quizzes Available Yet</p>
+        <p class="text-xs text-slate-500 mt-1">Published daily tests will appear here automatically.</p>
+      </div>`;
+    return;
+  }
+
+  // Filter Daily Quizzes according to selected exam
+  const filteredDailyQuizzes = cachedQuizDocs.map(quiz => {
+    const filteredQs = (quiz.questions || []).filter(q => matchesExamTag(q, selectedTestExam));
+    return { ...quiz, _filteredQuestions: filteredQs };
+  }).filter(quiz => quiz._filteredQuestions.length > 0);
+
+  container.innerHTML = `
+    ${filterBarHtml}
+    ${mistakeBanner}
+    ${specialMocksHtml}
+
+    <div class="mt-4 mb-2.5 flex items-center justify-between">
+      <h2 class="font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+        📅 ${selectedTestExam === "ALL" ? "Daily Practice Tests" : `${selectedTestExam} Daily Sectional Tests`}
+      </h2>
+      <span class="text-[11px] font-semibold text-slate-400">${filteredDailyQuizzes.length} Tests</span>
+    </div>
+
+    ${filteredDailyQuizzes.length === 0 ? `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+        No daily questions tagged specifically for <strong>${selectedTestExam}</strong> yet.
+      </div>
+    ` : filteredDailyQuizzes.map(quiz => {
+      const qCount = quiz._filteredQuestions.length;
+      const neg = selectedTestExam === "Railway" || selectedTestExam === "UPSC/PCS" ? 0.33 : (quiz.negative_marking ?? 0.25);
+      const displayTitle = selectedTestExam === "ALL" ? quiz.title : `${selectedTestExam} — ${quiz.title}`;
+      const safeTitle = displayTitle.replace(/'/g, "\\'");
+      const scopedQuizId = selectedTestExam === "ALL" ? quiz.id : `${quiz.id}_${selectedTestExam.replace("/", "_")}`;
+
+      return `
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3">
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">${selectedTestExam === "ALL" ? "All Exams" : selectedTestExam}</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">${quiz.category || "Daily CA"}</span>
+            <span class="text-[10px] font-semibold text-slate-400">${quiz.date || ""}</span>
+          </div>
+          <h3 class="font-bold text-slate-900 dark:text-white text-sm mt-1.5 leading-snug">${displayTitle}</h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">📋 ${qCount} Qs • ⏱ ${Math.max(3, Math.ceil(qCount * 0.6))} Mins • ⚖️ +1 / -${neg}</p>
+
+          <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+            <button onclick="window.openStandaloneLeaderboard('${scopedQuizId}', '${safeTitle}')" class="py-2 rounded-xl bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 text-xs font-bold active:scale-95 transition">
+              🏆 Top Ranks
+            </button>
+            <button onclick="window.startFilteredDailyQuiz('${quiz.id}', '${selectedTestExam}')" class="py-2 rounded-xl bg-[#285577] hover:bg-[#1e425e] text-white text-xs font-extrabold active:scale-95 transition">
+              Start Exam →
+            </button>
+          </div>
+        </div>`;
+    }).join("")}
+  `;
+}
+
+// Launch Exam-Specific Pool Mock (e.g., SSC Special Mock)
+window.startExamSpecificPoolTest = function(examName) {
+  const pool = examSpecificPools[examName] || [];
+  if (!pool.length) return alert(`No questions available for ${examName} yet.`);
+  const selectedQs = pool.slice(0, 25);
+  const neg = examName === "Railway" || examName === "UPSC/PCS" ? 0.33 : 0.25;
+  const cleanId = `special_${examName.replace("/", "_")}`;
+
+  launchExamEnvironment({
+    title: `${examName} Special Mock Test`,
+    category: `${examName} Exam`,
+    duration_mins: Math.max(5, Math.ceil(selectedQs.length * 0.6)),
+    negative_marking: neg,
+    questions: selectedQs
+  }, cleanId);
+};
+
+// Launch Daily Quiz Filtered by Selected Exam
+window.startFilteredDailyQuiz = async function(quizId, examFilter) {
+  const container = document.getElementById("quiz-container");
+  container.innerHTML = `<div class="text-center py-16 text-slate-500 text-sm font-semibold">Initializing ExamPulse Exam Console...</div>`;
+
+  let quizData = cachedQuizDocs.find(q => q.id === quizId);
+  if (!quizData) {
+    const snap = await getDoc(doc(db, "quizzes", quizId));
+    if (!snap.exists()) return alert("Quiz not found.");
+    quizData = { id: snap.id, ...snap.data() };
+  }
+
+  const filteredQs = (quizData.questions || []).filter(q => matchesExamTag(q, examFilter));
+  if (!filteredQs.length) return alert("No questions found for this exam category.");
+
+  const neg = examFilter === "Railway" || examFilter === "UPSC/PCS" ? 0.33 : (quizData.negative_marking ?? 0.25);
+  const title = examFilter === "ALL" ? quizData.title : `${examFilter} — ${quizData.title}`;
+  const scopedId = examFilter === "ALL" ? quizId : `${quizId}_${examFilter.replace("/", "_")}`;
+
+  launchExamEnvironment({
+    ...quizData,
+    title,
+    category: examFilter === "ALL" ? (quizData.category || "Daily CA") : examFilter,
+    duration_mins: Math.max(3, Math.ceil(filteredQs.length * 0.6)),
+    negative_marking: neg,
+    questions: filteredQs
+  }, scopedId);
+};
 
 window.startMistakeVaultTest = function() {
   const mistakes = getMistakeVault();
@@ -145,14 +287,8 @@ window.startMistakeVaultTest = function() {
   }, "mistake_vault");
 };
 
-window.startQuiz = async function(quizId) {
-  const container = document.getElementById("quiz-container");
-  container.innerHTML = `<div class="text-center py-16 text-slate-500 text-sm font-semibold">Initializing ExamPulse Exam Console...</div>`;
-
-  const snap = await getDoc(doc(db, "quizzes", quizId));
-  if (!snap.exists()) return alert("Quiz not found.");
-
-  launchExamEnvironment(snap.data(), quizId);
+window.startQuiz = function(quizId) {
+  window.startFilteredDailyQuiz(quizId, "ALL");
 };
 
 function launchExamEnvironment(quizData, quizId) {
@@ -251,7 +387,6 @@ function renderExamScreen() {
 
   container.innerHTML = `
     <div class="h-screen flex flex-col bg-white text-slate-900 font-sans overflow-hidden">
-      <!-- 1. ExamPulse Top Exam Header -->
       <div class="bg-[#285577] text-white px-2.5 py-1.5 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2 min-w-0">
           <button onclick="window.confirmExitTest()" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold">Exit</button>
@@ -267,10 +402,7 @@ function renderExamScreen() {
         </div>
       </div>
 
-      <!-- 2. Split Workspace: Left Question Panel + Right Always-Open Palette -->
       <div class="flex-1 flex min-h-0 relative">
-
-        <!-- LEFT PANEL -->
         <div class="flex-1 flex flex-col min-w-0 bg-white">
           <div class="bg-[#e8f0f7] border-b border-slate-300 px-2.5 py-1.5 flex items-center justify-between text-[10px] shrink-0">
             <div class="font-bold text-slate-800">
@@ -324,12 +456,10 @@ function renderExamScreen() {
           </div>
         </div>
 
-        <!-- COLLAPSE / EXPAND TAB -->
         <button onclick="window.toggleSidePalette()" title="Toggle Question Palette" class="w-4 bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0 border-l border-slate-400">
           ${isPaletteCollapsed ? "◀" : "▶"}
         </button>
 
-        <!-- RIGHT PANEL: Permanent Live Question Palette -->
         ${!isPaletteCollapsed ? `
           <div class="w-[126px] sm:w-56 bg-[#e8f0f7] border-l border-slate-300 flex flex-col shrink-0">
             <div class="bg-[#f8fafc] p-1.5 border-b border-slate-300 flex items-center gap-1.5 shrink-0">
@@ -449,11 +579,12 @@ window.markReviewAndNext = function() {
 
 window.confirmExitTest = function() {
   if (confirm("Are you sure you want to exit the exam? Your responses will be lost.")) {
-    loadQuizList();
+    renderQuizHub();
+    toggleExamFocusMode(false);
+    if (timerInterval) clearInterval(timerInterval);
   }
 };
 
-// Sync Score to Firestore test_results Collection
 async function syncScoreToLeaderboard(payload) {
   const user = auth.currentUser;
   if (!user || !payload || payload.quizId === "mistake_vault") return false;
@@ -478,7 +609,6 @@ async function syncScoreToLeaderboard(payload) {
   }
 }
 
-// Fetch & Render Top-10 Leaderboard
 async function renderLeaderboardSection(quizId, targetElementId) {
   const box = document.getElementById(targetElementId);
   if (!box) return;
@@ -497,7 +627,6 @@ async function renderLeaderboardSection(quizId, targetElementId) {
       return;
     }
 
-    // Deduplicate by user (keep highest score per student) and sort
     const bestByUser = new Map();
     snap.docs.forEach(d => {
       const r = d.data();
