@@ -1,6 +1,7 @@
-import { auth, db, collection, getDocs, query, orderBy, limit, doc, getDoc } from "../../core/firebase-config.js";
+import { auth, db, provider, signInWithPopup, collection, getDocs, query, orderBy, limit, doc, getDoc, addDoc, where, serverTimestamp } from "../../core/firebase-config.js";
 
 let activeQuiz = null;
+let activeQuizId = null;
 let currentQIndex = 0;
 let userAnswers = {};
 let visitedSet = new Set();
@@ -10,9 +11,10 @@ let lastTickTime = Date.now();
 let timerInterval = null;
 let secondsLeft = 0;
 let totalDurationSecs = 0;
-let testLang = "BOTH"; // "BOTH", "EN", "HI"
-let isPaletteCollapsed = false; // Right-side palette stays open live
+let testLang = "BOTH";
+let isPaletteCollapsed = false;
 let isPaperViewOpen = false;
+let lastResultPayload = null;
 
 function toggleExamFocusMode(isExamActive) {
   const header = document.querySelector("header");
@@ -100,20 +102,28 @@ export async function loadQuizList() {
         const quiz = d.data();
         const qCount = (quiz.questions || []).length;
         const neg = quiz.negative_marking ?? 0.25;
+        const safeTitle = (quiz.title || "Mock Test").replace(/'/g, "\\'");
         return `
-          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3 flex items-center justify-between gap-3">
-            <div>
-              <div class="flex items-center gap-1.5">
-                <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">Live CBT</span>
-                <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">${quiz.category || "Daily CA"}</span>
-                <span class="text-[10px] font-semibold text-slate-400">${quiz.date || ""}</span>
+          <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[10px] font-bold uppercase">Live CBT</span>
+                  <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">${quiz.category || "Daily CA"}</span>
+                  <span class="text-[10px] font-semibold text-slate-400">${quiz.date || ""}</span>
+                </div>
+                <h3 class="font-bold text-slate-900 dark:text-white text-sm mt-1.5 leading-snug">${quiz.title}</h3>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">📋 ${qCount} Qs • ⏱ ${quiz.duration_mins || 5} Mins • ⚖️ +1 / -${neg}</p>
               </div>
-              <h3 class="font-bold text-slate-900 dark:text-white text-sm mt-1 leading-snug">${quiz.title}</h3>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">📋 ${qCount} Qs • ⏱ ${quiz.duration_mins || 5} Mins • ⚖️ +1 / -${neg}</p>
             </div>
-            <button onclick="window.startQuiz('${d.id}')" class="px-4 py-2.5 rounded-xl bg-[#285577] hover:bg-[#1e425e] text-white text-xs font-extrabold whitespace-nowrap active:scale-95 transition">
-              Start Exam
-            </button>
+            <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+              <button onclick="window.openStandaloneLeaderboard('${d.id}', '${safeTitle}')" class="py-2 rounded-xl bg-amber-50 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 text-xs font-bold active:scale-95 transition">
+                🏆 Top Ranks
+              </button>
+              <button onclick="window.startQuiz('${d.id}')" class="py-2 rounded-xl bg-[#285577] hover:bg-[#1e425e] text-white text-xs font-extrabold active:scale-95 transition">
+                Start Exam →
+              </button>
+            </div>
           </div>`;
       }).join("")}
     `;
@@ -130,8 +140,9 @@ window.startMistakeVaultTest = function() {
     category: "Weak Area Drill",
     duration_mins: Math.max(3, Math.ceil(mistakes.length * 0.6)),
     negative_marking: 0.25,
-    questions: mistakes
-  });
+    questions: mistakes,
+    isMistakeDrill: true
+  }, "mistake_vault");
 };
 
 window.startQuiz = async function(quizId) {
@@ -141,11 +152,12 @@ window.startQuiz = async function(quizId) {
   const snap = await getDoc(doc(db, "quizzes", quizId));
   if (!snap.exists()) return alert("Quiz not found.");
 
-  launchExamEnvironment(snap.data());
+  launchExamEnvironment(snap.data(), quizId);
 };
 
-function launchExamEnvironment(quizData) {
+function launchExamEnvironment(quizData, quizId) {
   activeQuiz = quizData;
+  activeQuizId = quizId;
   currentQIndex = 0;
   userAnswers = {};
   visitedSet = new Set([0]);
@@ -155,6 +167,7 @@ function launchExamEnvironment(quizData) {
   testLang = "BOTH";
   isPaletteCollapsed = false;
   isPaperViewOpen = false;
+  lastResultPayload = null;
 
   totalDurationSecs = (activeQuiz.duration_mins || 5) * 60;
   secondsLeft = totalDurationSecs;
@@ -189,7 +202,6 @@ function recordTimeSpent() {
   lastTickTime = now;
 }
 
-// 5-State Live Palette Button Styling
 function getPaletteBtnStyle(idx) {
   const isAnswered = userAnswers[idx] !== undefined;
   const isMarked = markedReviewSet.has(idx);
@@ -225,7 +237,6 @@ function renderExamScreen() {
   const m = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const s = String(secondsLeft % 60).padStart(2, "0");
 
-  // 5-Category Counts
   let ansCount = 0, notAnsCount = 0, notVisCount = 0, revOnlyCount = 0, ansRevCount = 0;
   questions.forEach((_, idx) => {
     const ans = userAnswers[idx] !== undefined;
@@ -259,9 +270,8 @@ function renderExamScreen() {
       <!-- 2. Split Workspace: Left Question Panel + Right Always-Open Palette -->
       <div class="flex-1 flex min-h-0 relative">
 
-        <!-- LEFT PANEL: Question & Bottom Action Controls -->
+        <!-- LEFT PANEL -->
         <div class="flex-1 flex flex-col min-w-0 bg-white">
-          <!-- Sub-Header: Q Number, Marks & Language -->
           <div class="bg-[#e8f0f7] border-b border-slate-300 px-2.5 py-1.5 flex items-center justify-between text-[10px] shrink-0">
             <div class="font-bold text-slate-800">
               Q.<span class="text-[#285577] text-xs font-extrabold">${currentQIndex + 1}</span>/${questions.length}
@@ -274,14 +284,12 @@ function renderExamScreen() {
             </select>
           </div>
 
-          <!-- Scrollable Question & Options -->
           <div class="flex-1 p-2.5 overflow-y-auto bg-white">
             <div class="border border-slate-300 rounded p-2.5 mb-2.5 bg-white">
               ${testLang !== "HI" ? `<p class="font-semibold text-slate-900 text-[13px] sm:text-[15px] leading-snug mb-1.5">${q.question_en}</p>` : ""}
               ${(testLang !== "EN" && q.question_hi) ? `<p class="text-slate-800 ${testLang === "HI" ? "font-semibold text-[13px] sm:text-[15px]" : "text-[11px] sm:text-xs border-t border-slate-200 pt-1.5"} leading-snug">${q.question_hi}</p>` : ""}
             </div>
 
-            <!-- Options -->
             <div class="space-y-1.5">
               ${(q.options || []).map((opt, i) => {
                 const isSelected = selected === i;
@@ -303,7 +311,6 @@ function renderExamScreen() {
             </div>
           </div>
 
-          <!-- Left Panel Bottom Action Bar -->
           <div class="bg-[#f1f5f9] border-t border-slate-300 p-1.5 flex items-center justify-between gap-1 shrink-0">
             <button onclick="window.markReviewAndNext()" class="px-2 py-2 rounded bg-white border border-slate-400 text-slate-800 text-[10px] font-bold active:bg-slate-200">
               Review & Next
@@ -317,7 +324,7 @@ function renderExamScreen() {
           </div>
         </div>
 
-        <!-- COLLAPSE / EXPAND HANDLE TAB -->
+        <!-- COLLAPSE / EXPAND TAB -->
         <button onclick="window.toggleSidePalette()" title="Toggle Question Palette" class="w-4 bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0 border-l border-slate-400">
           ${isPaletteCollapsed ? "◀" : "▶"}
         </button>
@@ -325,7 +332,6 @@ function renderExamScreen() {
         <!-- RIGHT PANEL: Permanent Live Question Palette -->
         ${!isPaletteCollapsed ? `
           <div class="w-[126px] sm:w-56 bg-[#e8f0f7] border-l border-slate-300 flex flex-col shrink-0">
-            <!-- Candidate Mini Profile -->
             <div class="bg-[#f8fafc] p-1.5 border-b border-slate-300 flex items-center gap-1.5 shrink-0">
               <img src="${candidatePhoto}" alt="User" class="w-6 h-6 rounded border border-slate-400 object-cover bg-white shrink-0" />
               <div class="min-w-0 leading-tight">
@@ -334,7 +340,6 @@ function renderExamScreen() {
               </div>
             </div>
 
-            <!-- Compact Live Status Legend -->
             <div class="bg-white p-1.5 border-b border-slate-300 grid grid-cols-2 gap-1 text-[9px] font-bold text-slate-700 shrink-0">
               <div class="flex items-center gap-1">
                 <span class="w-4 h-4 bg-[#28a745] text-white rounded-t flex items-center justify-center text-[9px]">${ansCount}</span> Ans
@@ -350,12 +355,10 @@ function renderExamScreen() {
               </div>
             </div>
 
-            <!-- Section Banner -->
             <div class="bg-[#337ab7] text-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide shrink-0">
               Question Palette
             </div>
 
-            <!-- Live Numbered Grid (Updates Instantly on Click!) -->
             <div class="flex-1 p-1.5 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-1.5 content-start">
               ${questions.map((_, idx) => `
                 <button onclick="window.jumpToQuestion(${idx})" class="h-7 text-[11px] font-extrabold flex items-center justify-center transition ${getPaletteBtnStyle(idx)} ${idx === currentQIndex ? "ring-2 ring-slate-950" : ""}">
@@ -364,7 +367,6 @@ function renderExamScreen() {
               `).join("")}
             </div>
 
-            <!-- Always-Visible Submit Button -->
             <div class="p-1.5 bg-white border-t border-slate-300 shrink-0">
               <button onclick="window.submitQuiz(false)" class="w-full py-2 rounded bg-[#28a745] hover:bg-emerald-700 text-white text-[11px] font-extrabold uppercase tracking-wide shadow-xs">
                 Submit
@@ -372,10 +374,8 @@ function renderExamScreen() {
             </div>
           </div>
         ` : ""}
-
       </div>
 
-      <!-- Full Question Paper Modal -->
       ${isPaperViewOpen ? `
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3">
           <div class="bg-white w-full max-w-xl max-h-[85vh] rounded-lg overflow-hidden flex flex-col border border-slate-400">
@@ -419,7 +419,6 @@ window.jumpToQuestion = function(idx) {
   renderExamScreen();
 };
 
-// Instantly turns the question GREEN in the right-side palette on tap
 window.selectOption = function(optIndex) {
   userAnswers[currentQIndex] = optIndex;
   renderExamScreen();
@@ -454,7 +453,126 @@ window.confirmExitTest = function() {
   }
 };
 
-window.submitQuiz = function(isAutoSubmit = false) {
+// Sync Score to Firestore test_results Collection
+async function syncScoreToLeaderboard(payload) {
+  const user = auth.currentUser;
+  if (!user || !payload || payload.quizId === "mistake_vault") return false;
+
+  try {
+    await addDoc(collection(db, "test_results"), {
+      uid: user.uid,
+      name: user.displayName || "Aspirant",
+      photo: user.photoURL || "",
+      quizId: payload.quizId,
+      quizTitle: payload.quizTitle,
+      score: Number(payload.score),
+      total: Number(payload.total),
+      accuracy: Number(payload.accuracy),
+      timeUsedSecs: Number(payload.timeUsedSecs),
+      createdAt: serverTimestamp()
+    });
+    return true;
+  } catch (err) {
+    console.warn("Leaderboard sync error:", err.message);
+    return false;
+  }
+}
+
+// Fetch & Render Top-10 Leaderboard
+async function renderLeaderboardSection(quizId, targetElementId) {
+  const box = document.getElementById(targetElementId);
+  if (!box) return;
+  box.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">Loading All-India Rankings...</p>`;
+
+  try {
+    const q = query(
+      collection(db, "test_results"),
+      where("quizId", "==", quizId),
+      limit(40)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      box.innerHTML = `<p class="text-center text-xs text-slate-500 dark:text-slate-400 py-4">No scores submitted yet. Be the first Rank #1!</p>`;
+      return;
+    }
+
+    // Deduplicate by user (keep highest score per student) and sort
+    const bestByUser = new Map();
+    snap.docs.forEach(d => {
+      const r = d.data();
+      const prev = bestByUser.get(r.uid);
+      if (!prev || r.score > prev.score || (r.score === prev.score && r.timeUsedSecs < prev.timeUsedSecs)) {
+        bestByUser.set(r.uid, r);
+      }
+    });
+
+    const ranked = Array.from(bestByUser.values())
+      .sort((a, b) => b.score - a.score || b.accuracy - a.accuracy || a.timeUsedSecs - b.timeUsedSecs)
+      .slice(0, 10);
+
+    const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+
+    box.innerHTML = ranked.map((r, idx) => {
+      const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
+      const isMe = currentUid && r.uid === currentUid;
+      return `
+        <div class="flex items-center justify-between py-2 px-2.5 rounded-xl mb-1.5 ${
+          isMe ? "bg-amber-50 dark:bg-amber-500/15 border border-amber-300 dark:border-amber-500/40" : "bg-slate-50 dark:bg-slate-800/60"
+        }">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-6 text-center font-extrabold text-xs ${idx < 3 ? "text-base" : "text-slate-500"}">${medal}</span>
+            <img src="${r.photo || "./assets/icons/logo.png"}" alt="" class="w-6 h-6 rounded-full object-cover border border-slate-300 shrink-0" />
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-900 dark:text-white truncate">${r.name} ${isMe ? "(You)" : ""}</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">${r.accuracy}% Acc • ${r.timeUsedSecs}s</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <span class="px-2 py-0.5 rounded-lg bg-[#285577] text-white text-xs font-extrabold">${Number(r.score).toFixed(2)}</span>
+            <span class="text-[10px] text-slate-400">/${r.total}</span>
+          </div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    box.innerHTML = `<p class="text-center text-xs text-red-500 py-3">Could not load leaderboard: ${err.message}</p>`;
+  }
+}
+
+window.openStandaloneLeaderboard = function(quizId, quizTitle) {
+  const container = document.getElementById("quiz-container");
+  container.innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+        <div>
+          <span class="text-[10px] font-extrabold uppercase text-amber-600">🏆 All-India Leaderboard</span>
+          <h3 class="font-bold text-sm text-slate-900 dark:text-white mt-0.5">${quizTitle}</h3>
+        </div>
+        <button onclick="window.reloadQuizList()" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200">← Back</button>
+      </div>
+      <div id="standalone-lb-list"></div>
+    </div>
+  `;
+  renderLeaderboardSection(quizId, "standalone-lb-list");
+};
+
+window.signInAndSyncScore = async function() {
+  try {
+    await signInWithPopup(auth, provider);
+    if (lastResultPayload) {
+      const saved = await syncScoreToLeaderboard(lastResultPayload);
+      if (saved) {
+        const banner = document.getElementById("guest-sync-banner");
+        if (banner) banner.innerHTML = `<p class="text-xs font-bold text-emerald-400 text-center">✅ Score synced to All-India Leaderboard!</p>`;
+        renderLeaderboardSection(lastResultPayload.quizId, "post-test-lb-list");
+      }
+    }
+  } catch (err) {
+    alert("Sign-in cancelled or failed: " + err.message);
+  }
+};
+
+window.submitQuiz = async function(isAutoSubmit = false) {
   const questions = activeQuiz.questions || [];
   const answeredCount = Object.keys(userAnswers).length;
   if (!isAutoSubmit) {
@@ -496,6 +614,20 @@ window.submitQuiz = function(isAutoSubmit = false) {
   const timeUsedSecs = Math.max(1, totalDurationSecs - secondsLeft);
   const avgSecPerQ = attempted > 0 ? Math.round(timeUsedSecs / attempted) : 0;
 
+  lastResultPayload = {
+    quizId: activeQuizId,
+    quizTitle: activeQuiz.title,
+    score: finalScore,
+    total: questions.length,
+    accuracy,
+    timeUsedSecs
+  };
+
+  let isSynced = false;
+  if (auth.currentUser && activeQuizId !== "mistake_vault") {
+    isSynced = await syncScoreToLeaderboard(lastResultPayload);
+  }
+
   const container = document.getElementById("quiz-container");
 
   container.innerHTML = `
@@ -536,7 +668,16 @@ window.submitQuiz = function(isAutoSubmit = false) {
         </div>
       </div>
 
-      <div class="grid ${wrong > 0 ? "grid-cols-2" : "grid-cols-1"} gap-2 mt-4">
+      ${activeQuizId !== "mistake_vault" ? `
+        <div id="guest-sync-banner" class="mt-3 p-2.5 rounded-xl bg-white/10 text-center">
+          ${isSynced
+            ? `<p class="text-xs font-bold text-emerald-300">✅ Rank Synced to All-India Leaderboard</p>`
+            : `<button onclick="window.signInAndSyncScore()" class="w-full py-2 rounded-lg bg-amber-400 text-slate-950 text-xs font-extrabold">🔑 Sign In to Publish Your Rank</button>`
+          }
+        </div>
+      ` : ""}
+
+      <div class="grid ${wrong > 0 ? "grid-cols-2" : "grid-cols-1"} gap-2 mt-3">
         <button onclick="window.reloadQuizList()" class="py-3 rounded-xl bg-white text-slate-900 text-xs font-extrabold">
           ← All Tests
         </button>
@@ -546,6 +687,16 @@ window.submitQuiz = function(isAutoSubmit = false) {
           </button>` : ""}
       </div>
     </div>
+
+    ${activeQuizId !== "mistake_vault" ? `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="font-extrabold text-xs uppercase text-amber-600 tracking-wider">🏆 Live All-India Top 10</h3>
+          <span class="text-[10px] text-slate-400">Real-Time Rank</span>
+        </div>
+        <div id="post-test-lb-list"></div>
+      </div>
+    ` : ""}
 
     <h3 class="font-extrabold text-xs uppercase text-slate-500 dark:text-slate-400 mb-3 tracking-wider">Detailed Answer Key & Explanations</h3>
     ${questions.map((q, idx) => {
@@ -579,6 +730,10 @@ window.submitQuiz = function(isAutoSubmit = false) {
         </div>`;
     }).join("")}
   `;
+
+  if (activeQuizId !== "mistake_vault") {
+    renderLeaderboardSection(activeQuizId, "post-test-lb-list");
+  }
 };
 
 window.reloadQuizList = loadQuizList;
