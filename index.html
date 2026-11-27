@@ -68,7 +68,6 @@
       <div class="flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200/80 dark:border-indigo-500/30 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
         ⚡ <span id="header-xp">0</span>
       </div>
-      <!-- Test Alerts & Notification Bell -->
       <button id="notif-bell-btn" title="New Test Alerts" class="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs">
         🔔
         <span id="notif-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
@@ -109,7 +108,7 @@
             <span id="audio-brief-icon">🎧</span> <span id="audio-brief-label">Listen Headlines</span>
           </button>
           <button onclick="window.switchTab('tests')" class="flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 text-[11px] font-extrabold py-2 px-3 rounded-xl active:scale-95 transition">
-            <span>⚡</span> Exam-Wise Mocks
+            <span>⚡</span> 10-Q Exam Sets
           </button>
         </div>
       </div>
@@ -131,12 +130,12 @@
     <section id="view-admin" class="hidden">
       <div class="bg-slate-900 text-white rounded-2xl p-4 mb-3">
         <h2 class="font-bold text-base">Creator Studio (Admin)</h2>
-        <p class="text-xs text-slate-400">Publish Daily CA, Exam-Specific Year Mocks, Static GK & PDFs</p>
+        <p class="text-xs text-slate-400">Daily CA, 10-Q Exam Mocks, Static GK & Auto E-Book Compiler</p>
         <div class="grid grid-cols-4 gap-1 mt-3">
           <button onclick="window.switchAdminSubTab('ca')" id="subtab-ca" class="py-2 rounded-xl bg-amber-500 text-slate-950 text-[10px] font-bold">Daily CA</button>
           <button onclick="window.switchAdminSubTab('examtest')" id="subtab-examtest" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">Exam Mocks</button>
           <button onclick="window.switchAdminSubTab('static')" id="subtab-static" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">Static GK</button>
-          <button onclick="window.switchAdminSubTab('store')" id="subtab-store" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">PDF Store</button>
+          <button onclick="window.switchAdminSubTab('store')" id="subtab-store" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">E-Book & PDF</button>
         </div>
       </div>
 
@@ -156,10 +155,11 @@
         </div>
       </div>
 
-      <!-- Sub-Tab 2: Specific Exam & Year-Wise Mock Publisher -->
+      <!-- Sub-Tab 2: Specific Exam & Year-Wise Mock Publisher (Auto 10-Q Sets) -->
       <div id="admin-panel-examtest" class="hidden">
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
-          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Publish Exam-Specific Year-Wise Test</h3>
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-1">Publish Specific Exam Mock (Auto 10-Q Sets)</h3>
+          <p class="text-[11px] text-slate-400 mb-3">Paste 10, 20, or 30 questions — system automatically creates 10-question sets!</p>
 
           <div class="grid grid-cols-2 gap-2 mb-2.5">
             <div>
@@ -197,17 +197,17 @@
             </div>
           </div>
 
-          <input id="mock-title-input" type="text" placeholder="Test Title (e.g., SBI PO Prelims 2026 — Banking & Financial Awareness Set 1)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="mock-title-input" type="text" placeholder="Test Title (e.g., SBI PO Prelims 2026 — Banking Awareness)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
 
           <div class="grid grid-cols-3 gap-2 mb-2.5">
-            <input id="mock-duration-input" type="number" value="15" placeholder="Mins" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Duration in Minutes" />
+            <input id="mock-duration-input" type="number" value="8" placeholder="Mins/Set" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Minutes per 10-Q Set" />
             <input id="mock-pos-input" type="number" step="0.5" value="1" placeholder="+Marks" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Positive Marks" />
             <input id="mock-neg-input" type="number" step="0.05" value="0.25" placeholder="-Neg" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Negative Marks" />
           </div>
 
           <textarea id="mock-questions-json" rows="7" placeholder='Paste Questions JSON Array here: [{"question_en":"...","question_hi":"...","options":["A","B","C","D"],"correct_index":0,"explanation_en":"..."}]' class="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2"></textarea>
           <p id="mock-publish-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
-          <button id="publish-specific-mock-btn" class="w-full bg-[#285577] text-white text-xs font-extrabold py-3 rounded-xl">Publish Exam Mock & Notify Students 🔔</button>
+          <button id="publish-specific-mock-btn" class="w-full bg-[#285577] text-white text-xs font-extrabold py-3 rounded-xl">Publish 10-Q Sets & Notify Students 🔔</button>
         </div>
 
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
@@ -233,21 +233,40 @@
         <button id="publish-static-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Publish Static Note</button>
       </div>
 
-      <!-- Sub-Tab 4: PDF & Course Store Publisher -->
+      <!-- Sub-Tab 4: Weekly/Monthly Auto E-Book Compiler & PDF Store -->
       <div id="admin-panel-store" class="hidden">
+        <!-- 1-Click Weekly & Monthly Categorized E-Book Generator -->
+        <div class="bg-gradient-to-br from-slate-900 to-[#1e3a52] text-white rounded-2xl p-4 shadow-md mb-4 border border-slate-700">
+          <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-extrabold uppercase">📚 1-Click E-Book Studio</span>
+          <h3 class="font-extrabold text-sm mt-1.5">Auto-Compile Categorized Magazine E-Book</h3>
+          <p class="text-[11px] text-slate-300 mt-0.5 mb-3">Automatically groups news into National, Banking, SSC, Railway, UPSC/PCS & Static GK chapters.</p>
+
+          <div class="grid grid-cols-2 gap-2 mb-2.5">
+            <button id="compile-weekly-ebook-btn" class="py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold active:scale-95 transition">
+              📅 Weekly E-Book (7d)
+            </button>
+            <button id="compile-monthly-ebook-btn" class="py-2.5 px-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-extrabold active:scale-95 transition">
+              🗓️ Monthly E-Book (30d)
+            </button>
+          </div>
+          <p id="ebook-compile-status" class="text-[11px] text-amber-200 font-medium"></p>
+        </div>
+
+        <!-- Manual PDF / Course Store Form -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
-          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Add PDF Digest or Course</h3>
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Add PDF Digest or Course to Store</h3>
           <select id="store-type-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5">
-            <option value="pdf">PDF Study Material / Monthly Digest</option>
+            <option value="pdf">PDF Study Material / Weekly & Monthly E-Book</option>
             <option value="course">Video / Complete Exam Course</option>
           </select>
-          <input id="store-title-input" type="text" placeholder="Title (e.g., November 2026 Current Affairs Digest)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
-          <input id="store-desc-input" type="text" placeholder="Short Description (e.g., 300+ MCQs + Static Links)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="store-title-input" type="text" placeholder="Title (e.g., Weekly ExamPulse Magazine — Nov Week 4)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+          <input id="store-desc-input" type="text" placeholder="Short Description (e.g., Categorized National, Banking, SSC, Railway & Static GK)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
           <input id="store-price-input" type="number" placeholder="Price in INR (Enter 0 for Free)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
-          <input id="store-url-input" type="url" placeholder="Google Drive / Course Access URL" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2" />
+          <input id="store-url-input" type="url" placeholder="Google Drive PDF / E-Book Link" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2" />
           <p id="store-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
-          <button id="publish-store-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Add to Store</button>
+          <button id="publish-store-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Publish E-Book to Store</button>
         </div>
+
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
           <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Active Store Listings</h3>
           <div id="admin-store-list"></div>
@@ -262,7 +281,7 @@
       <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
         <div>
           <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">🔔 New Mock Test Alerts</h3>
-          <p class="text-[11px] text-slate-500">Latest exam-specific tests & updates</p>
+          <p class="text-[11px] text-slate-500">Latest 10-question exam sets & updates</p>
         </div>
         <button onclick="document.getElementById('notif-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold">✕</button>
       </div>
@@ -294,7 +313,7 @@
         <p id="modal-static" class="text-xs text-amber-950 dark:text-amber-200 leading-relaxed"></p>
       </div>
       <button onclick="document.getElementById('analysis-modal').classList.add('hidden'); window.switchTab('tests');" class="w-full bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 font-bold text-xs py-3.5 rounded-xl">
-        Practice MCQs on This Topic →
+        Practice 10-Q Set on This Topic →
       </button>
     </div>
   </div>
@@ -303,21 +322,20 @@
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 flex justify-around py-2">
     <button id="nav-feed" onclick="window.switchTab('feed')" class="nav-btn text-slate-900 dark:text-amber-400 font-bold flex flex-col items-center text-[11px]"><span>📰</span>Daily Feed</button>
     <button id="nav-tests" onclick="window.switchTab('tests')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📝</span>Tests</button>
-    <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & Store</button>
+    <button id="nav-vault" onclick="window.switchTab('vault')" class="nav-btn text-slate-400 font-medium flex flex-col items-center text-[11px]"><span>📚</span>Static & E-Books</button>
   </nav>
 
   <!-- App Wiring -->
   <script type="module">
     import { auth, db, collection, getDocs, query, orderBy, limit, provider, signInWithPopup, signOut, onAuthStateChanged, ADMIN_EMAIL } from "./core/firebase-config.js";
     import { loadDailyFeed, setExamFilter } from "./modules/feed/feed-ui.js";
-    import { loadQuizList } from "./modules/quiz/quiz-engine.js?v=10";
+    import { loadQuizList } from "./modules/quiz/quiz-engine.js?v=11";
     import { loadVaultView } from "./modules/vault/vault-ui.js";
-    import { publishFromJSON, publishSpecificMockTest, publishStaticNote, publishStoreItem, loadRecentAdminDocs, loadSpecificMocksAdminList, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js?v=2";
+    import { publishFromJSON, publishSpecificMockTest, publishStaticNote, publishStoreItem, compileAndPreviewEbook, loadRecentAdminDocs, loadSpecificMocksAdminList, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js?v=3";
 
     let currentUser = null;
     let latestAlertsCache = [];
 
-    // Sub-Exam Catalog Map
     const SUB_EXAMS_MAP = {
       Banking: ["SBI PO", "SBI Clerk", "IBPS PO", "IBPS Clerk", "IBPS RRB PO", "IBPS RRB Clerk", "RBI Grade B", "RBI Assistant", "LIC AAO / ADO"],
       SSC: ["SSC CGL", "SSC CHSL", "SSC MTS", "SSC GD Constable", "SSC CPO", "SSC Selection Post", "SSC Stenographer"],
@@ -332,7 +350,6 @@
     };
     window.updateSubExamOptions();
 
-    // Night Study Mode Toggle
     const themeBtn = document.getElementById("theme-toggle-btn");
     function syncThemeIcon() {
       themeBtn.innerText = document.documentElement.classList.contains("dark") ? "☀️" : "🌙";
@@ -344,7 +361,6 @@
       syncThemeIcon();
     });
 
-    // Check New Test Alerts & Trigger Browser/Phone Notification
     async function checkTestNotifications() {
       try {
         const q = query(collection(db, "quizzes"), orderBy("date", "desc"), limit(6));
@@ -358,7 +374,7 @@
           document.getElementById("notif-dot").classList.remove("hidden");
           if ("Notification" in window && Notification.permission === "granted" && lastSeenId) {
             navigator.serviceWorker.ready.then(reg => {
-              reg.showNotification("ExamPulse — New Mock Test Live!", {
+              reg.showNotification("ExamPulse — New 10-Q Mock Live!", {
                 body: `${newest.title} (${(newest.questions || []).length} Questions)`,
                 icon: "./assets/icons/logo.png",
                 badge: "./assets/icons/logo.png"
@@ -470,6 +486,8 @@
     document.getElementById("publish-specific-mock-btn").addEventListener("click", publishSpecificMockTest);
     document.getElementById("publish-static-btn").addEventListener("click", publishStaticNote);
     document.getElementById("publish-store-btn").addEventListener("click", publishStoreItem);
+    document.getElementById("compile-weekly-ebook-btn").addEventListener("click", () => compileAndPreviewEbook(7));
+    document.getElementById("compile-monthly-ebook-btn").addEventListener("click", () => compileAndPreviewEbook(30));
     document.getElementById("gen-ppt-btn").addEventListener("click", generateYouTubeSlides);
   </script>
 </body>
