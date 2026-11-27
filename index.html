@@ -49,31 +49,32 @@
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none pb-24 transition-colors duration-200">
 
   <!-- Gamified Premium Top Header -->
-  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3.5 py-2.5 flex items-center justify-between">
-    <div class="flex items-center gap-2.5">
-      <img src="./assets/icons/logo.png" alt="ExamPulse Logo" class="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm" />
+  <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3 py-2.5 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <img src="./assets/icons/logo.png" alt="ExamPulse Logo" class="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm" />
       <div>
-        <div class="flex items-center gap-1.5">
-          <h1 class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-none">ExamPulse</h1>
-          <span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[9px] font-extrabold tracking-wide">PRO</span>
+        <div class="flex items-center gap-1">
+          <h1 class="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white leading-none">ExamPulse</h1>
+          <span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[8px] font-extrabold">PRO</span>
         </div>
         <p id="feed-date-label" class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Daily GK & Analysis</p>
       </div>
     </div>
 
-    <div class="flex items-center gap-1.5">
-      <!-- Streak & XP Badges -->
-      <div class="hidden xs:flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50 dark:bg-orange-500/15 border border-orange-200/80 dark:border-orange-500/30 text-[11px] font-bold text-orange-700 dark:text-orange-300" title="Daily Study Streak">
+    <div class="flex items-center gap-1">
+      <div class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50 dark:bg-orange-500/15 border border-orange-200/80 dark:border-orange-500/30 text-[10px] font-bold text-orange-700 dark:text-orange-300">
         🔥 <span id="header-streak">1</span>d
       </div>
-      <div class="flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200/80 dark:border-indigo-500/30 text-[11px] font-bold text-indigo-700 dark:text-indigo-300" title="Knowledge XP">
+      <div class="flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200/80 dark:border-indigo-500/30 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
         ⚡ <span id="header-xp">0</span>
       </div>
-      <!-- Night Study Mode Toggle -->
+      <!-- Test Alerts & Notification Bell -->
+      <button id="notif-bell-btn" title="New Test Alerts" class="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs">
+        🔔
+        <span id="notif-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
+      </button>
       <button id="theme-toggle-btn" title="Night Study Mode" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs">🌙</button>
-      <!-- User Sign In -->
-      <button id="user-login-btn" class="px-2.5 py-1.5 rounded-full bg-slate-900 dark:bg-slate-800 text-white text-[11px] font-semibold">Sign In</button>
-      <!-- Admin Key -->
+      <button id="user-login-btn" class="px-2.5 py-1.5 rounded-full bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-semibold">Sign In</button>
       <button id="admin-key-btn" title="Creator Studio" class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs">🔑</button>
     </div>
   </header>
@@ -92,7 +93,6 @@
   <main class="max-w-xl mx-auto p-3.5">
     <!-- View 1: Daily Feed -->
     <section id="view-feed">
-      <!-- Daily Mission & Audio Briefing Banner -->
       <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 mb-3.5 shadow-md border border-slate-700/70">
         <div class="flex items-center justify-between mb-2">
           <div>
@@ -101,17 +101,15 @@
           </div>
           <span id="mission-percent-badge" class="px-2.5 py-1 rounded-xl bg-white/10 text-amber-300 font-extrabold text-xs">0/5</span>
         </div>
-        <!-- Progress Bar -->
         <div class="w-full h-2 bg-slate-700/80 rounded-full overflow-hidden mb-3">
           <div id="mission-progress-bar" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 rounded-full transition-all duration-300" style="width: 0%"></div>
         </div>
-        <!-- Quick Audio Revision & Daily Test Strip -->
         <div class="grid grid-cols-2 gap-2">
           <button id="audio-brief-btn" onclick="window.toggleAudioBriefing()" class="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white text-[11px] font-bold py-2 px-3 rounded-xl active:scale-95 transition">
             <span id="audio-brief-icon">🎧</span> <span id="audio-brief-label">Listen Headlines</span>
           </button>
           <button onclick="window.switchTab('tests')" class="flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 text-[11px] font-extrabold py-2 px-3 rounded-xl active:scale-95 transition">
-            <span>⚡</span> Start Daily Mock
+            <span>⚡</span> Exam-Wise Mocks
           </button>
         </div>
       </div>
@@ -129,22 +127,23 @@
       <div id="vault-container"></div>
     </section>
 
-    <!-- View 4: Built-in Creator Admin Studio (3 Sub-Tabs) -->
+    <!-- View 4: Built-in Creator Admin Studio (4 Sub-Tabs) -->
     <section id="view-admin" class="hidden">
       <div class="bg-slate-900 text-white rounded-2xl p-4 mb-3">
         <h2 class="font-bold text-base">Creator Studio (Admin)</h2>
-        <p class="text-xs text-slate-400">Manage Daily CA, Static GK Notes, PDFs & Courses</p>
-        <div class="grid grid-cols-3 gap-1.5 mt-3">
-          <button onclick="window.switchAdminSubTab('ca')" id="subtab-ca" class="py-2 rounded-xl bg-amber-500 text-slate-950 text-[11px] font-bold">Daily CA & Quiz</button>
-          <button onclick="window.switchAdminSubTab('static')" id="subtab-static" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold">Static GK</button>
-          <button onclick="window.switchAdminSubTab('store')" id="subtab-store" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold">PDF & Courses</button>
+        <p class="text-xs text-slate-400">Publish Daily CA, Exam-Specific Year Mocks, Static GK & PDFs</p>
+        <div class="grid grid-cols-4 gap-1 mt-3">
+          <button onclick="window.switchAdminSubTab('ca')" id="subtab-ca" class="py-2 rounded-xl bg-amber-500 text-slate-950 text-[10px] font-bold">Daily CA</button>
+          <button onclick="window.switchAdminSubTab('examtest')" id="subtab-examtest" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">Exam Mocks</button>
+          <button onclick="window.switchAdminSubTab('static')" id="subtab-static" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">Static GK</button>
+          <button onclick="window.switchAdminSubTab('store')" id="subtab-store" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold">PDF Store</button>
         </div>
       </div>
 
       <!-- Sub-Tab 1: Daily CA & Quiz -->
       <div id="admin-panel-ca">
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
-          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-22","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-950 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none"></textarea>
+          <textarea id="admin-json-input" rows="8" placeholder='{"date":"2026-11-27","articles":[...],"questions":[...]}' class="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-950 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none"></textarea>
           <p id="admin-status" class="text-xs font-medium text-blue-600 mt-2"></p>
           <div class="grid grid-cols-2 gap-2 mt-3">
             <button id="publish-json-btn" class="bg-emerald-600 text-white text-xs font-bold py-3 rounded-xl">Publish Live</button>
@@ -157,7 +156,67 @@
         </div>
       </div>
 
-      <!-- Sub-Tab 2: Static GK Publisher -->
+      <!-- Sub-Tab 2: Specific Exam & Year-Wise Mock Publisher -->
+      <div id="admin-panel-examtest" class="hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Publish Exam-Specific Year-Wise Test</h3>
+
+          <div class="grid grid-cols-2 gap-2 mb-2.5">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 uppercase">Exam Group</label>
+              <select id="mock-group-select" onchange="window.updateSubExamOptions()" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mt-1">
+                <option value="Banking">Banking</option>
+                <option value="SSC">SSC</option>
+                <option value="Railway">Railway</option>
+                <option value="UPSC/PCS">UPSC / State PCS</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 uppercase">Specific Target Exam</label>
+              <select id="mock-subexam-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mt-1"></select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 mb-2.5">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 uppercase">Exam Year / Cycle</label>
+              <select id="mock-year-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mt-1">
+                <option value="2026">2026</option>
+                <option value="2025 PYQ">2025 PYQ</option>
+                <option value="2024 PYQ">2024 PYQ</option>
+                <option value="2027 Target">2027 Target</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 uppercase">Stage / Difficulty</label>
+              <select id="mock-level-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mt-1">
+                <option value="Easy">Prelims / Easy</option>
+                <option value="Moderate">Moderate / Tier-1</option>
+                <option value="High">Mains / Tier-2 (High)</option>
+              </select>
+            </div>
+          </div>
+
+          <input id="mock-title-input" type="text" placeholder="Test Title (e.g., SBI PO Prelims 2026 — Banking & Financial Awareness Set 1)" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5" />
+
+          <div class="grid grid-cols-3 gap-2 mb-2.5">
+            <input id="mock-duration-input" type="number" value="15" placeholder="Mins" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Duration in Minutes" />
+            <input id="mock-pos-input" type="number" step="0.5" value="1" placeholder="+Marks" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Positive Marks" />
+            <input id="mock-neg-input" type="number" step="0.05" value="0.25" placeholder="-Neg" class="p-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl" title="Negative Marks" />
+          </div>
+
+          <textarea id="mock-questions-json" rows="7" placeholder='Paste Questions JSON Array here: [{"question_en":"...","question_hi":"...","options":["A","B","C","D"],"correct_index":0,"explanation_en":"..."}]' class="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2"></textarea>
+          <p id="mock-publish-status" class="text-xs font-medium text-emerald-600 mb-2"></p>
+          <button id="publish-specific-mock-btn" class="w-full bg-[#285577] text-white text-xs font-extrabold py-3 rounded-xl">Publish Exam Mock & Notify Students 🔔</button>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
+          <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Published Specific Exam Mocks</h3>
+          <div id="admin-specific-mocks-list"></div>
+        </div>
+      </div>
+
+      <!-- Sub-Tab 3: Static GK Publisher -->
       <div id="admin-panel-static" class="hidden bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
         <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Publish Static GK Note</h3>
         <select id="static-subject-select" class="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl mb-2.5">
@@ -174,7 +233,7 @@
         <button id="publish-static-btn" class="w-full bg-slate-900 dark:bg-amber-500 dark:text-slate-950 text-white text-xs font-bold py-3 rounded-xl">Publish Static Note</button>
       </div>
 
-      <!-- Sub-Tab 3: PDF & Course Store Publisher -->
+      <!-- Sub-Tab 4: PDF & Course Store Publisher -->
       <div id="admin-panel-store" class="hidden">
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
           <h3 class="font-bold text-xs uppercase text-slate-500 mb-3">Add PDF Digest or Course</h3>
@@ -196,6 +255,24 @@
       </div>
     </section>
   </main>
+
+  <!-- Live Test Alerts Drawer Modal -->
+  <div id="notif-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[80vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+        <div>
+          <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">🔔 New Mock Test Alerts</h3>
+          <p class="text-[11px] text-slate-500">Latest exam-specific tests & updates</p>
+        </div>
+        <button onclick="document.getElementById('notif-modal').classList.add('hidden')" class="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold">✕</button>
+      </div>
+      <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+        <span class="text-[11px] font-semibold text-amber-900 dark:text-amber-200">Get phone pop-ups when new tests drop</span>
+        <button id="enable-push-btn" class="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-extrabold">Enable Alerts</button>
+      </div>
+      <div id="notif-alerts-list" class="space-y-2"></div>
+    </div>
+  </div>
 
   <!-- Deep Analysis Modal -->
   <div id="analysis-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center">
@@ -231,13 +308,29 @@
 
   <!-- App Wiring -->
   <script type="module">
-    import { auth, provider, signInWithPopup, signOut, onAuthStateChanged, ADMIN_EMAIL } from "./core/firebase-config.js";
+    import { auth, db, collection, getDocs, query, orderBy, limit, provider, signInWithPopup, signOut, onAuthStateChanged, ADMIN_EMAIL } from "./core/firebase-config.js";
     import { loadDailyFeed, setExamFilter } from "./modules/feed/feed-ui.js";
-    import { loadQuizList } from "./modules/quiz/quiz-engine.js?v=8";
+    import { loadQuizList } from "./modules/quiz/quiz-engine.js?v=10";
     import { loadVaultView } from "./modules/vault/vault-ui.js";
-    import { publishFromJSON, publishStaticNote, publishStoreItem, loadRecentAdminDocs, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js";
+    import { publishFromJSON, publishSpecificMockTest, publishStaticNote, publishStoreItem, loadRecentAdminDocs, loadSpecificMocksAdminList, loadStoreAdminList, generateYouTubeSlides } from "./modules/admin/admin-studio.js?v=2";
 
     let currentUser = null;
+    let latestAlertsCache = [];
+
+    // Sub-Exam Catalog Map
+    const SUB_EXAMS_MAP = {
+      Banking: ["SBI PO", "SBI Clerk", "IBPS PO", "IBPS Clerk", "IBPS RRB PO", "IBPS RRB Clerk", "RBI Grade B", "RBI Assistant", "LIC AAO / ADO"],
+      SSC: ["SSC CGL", "SSC CHSL", "SSC MTS", "SSC GD Constable", "SSC CPO", "SSC Selection Post", "SSC Stenographer"],
+      Railway: ["RRB NTPC", "RRB Group D", "RRB ALP", "RRB Technician", "RPF SI / Constable", "RRB JE"],
+      "UPSC/PCS": ["UPSC CSE Prelims", "BPSC 71st / 72nd", "UPPSC PCS", "MPPSC", "JPSC", "RAS"]
+    };
+
+    window.updateSubExamOptions = function() {
+      const grp = document.getElementById("mock-group-select").value;
+      const subSel = document.getElementById("mock-subexam-select");
+      subSel.innerHTML = (SUB_EXAMS_MAP[grp] || []).map(s => `<option value="${s}">${s}</option>`).join("");
+    };
+    window.updateSubExamOptions();
 
     // Night Study Mode Toggle
     const themeBtn = document.getElementById("theme-toggle-btn");
@@ -251,7 +344,63 @@
       syncThemeIcon();
     });
 
+    // Check New Test Alerts & Trigger Browser/Phone Notification
+    async function checkTestNotifications() {
+      try {
+        const q = query(collection(db, "quizzes"), orderBy("date", "desc"), limit(6));
+        const snap = await getDocs(q);
+        latestAlertsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (!latestAlertsCache.length) return;
+
+        const newest = latestAlertsCache[0];
+        const lastSeenId = localStorage.getItem("ep_last_seen_quiz");
+        if (lastSeenId !== newest.id) {
+          document.getElementById("notif-dot").classList.remove("hidden");
+          if ("Notification" in window && Notification.permission === "granted" && lastSeenId) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification("ExamPulse — New Mock Test Live!", {
+                body: `${newest.title} (${(newest.questions || []).length} Questions)`,
+                icon: "./assets/icons/logo.png",
+                badge: "./assets/icons/logo.png"
+              });
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn("Alert check skipped:", e.message);
+      }
+    }
+
+    document.getElementById("notif-bell-btn").addEventListener("click", () => {
+      document.getElementById("notif-dot").classList.add("hidden");
+      if (latestAlertsCache.length) {
+        localStorage.setItem("ep_last_seen_quiz", latestAlertsCache[0].id);
+      }
+      const listEl = document.getElementById("notif-alerts-list");
+      listEl.innerHTML = latestAlertsCache.length ? latestAlertsCache.map(item => `
+        <div onclick="document.getElementById('notif-modal').classList.add('hidden'); window.switchTab('tests');" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[9px] font-bold uppercase">${item.sub_exam || item.category || "New Test"} ${item.exam_year || ""}</span>
+            <span class="text-[10px] text-slate-400">${item.date || ""}</span>
+          </div>
+          <p class="text-xs font-bold text-slate-900 dark:text-white mt-1">${item.title}</p>
+        </div>
+      `).join("") : `<p class="text-xs text-slate-400 text-center py-4">No recent alerts.</p>`;
+      document.getElementById("notif-modal").classList.remove("hidden");
+    });
+
+    document.getElementById("enable-push-btn").addEventListener("click", async () => {
+      if (!("Notification" in window)) return alert("Notifications are not supported on this browser.");
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        alert("Alerts Enabled! You will now receive phone notifications when new mock tests go live.");
+      } else {
+        alert("Permission blocked. Please allow notifications from browser/app settings.");
+      }
+    });
+
     loadDailyFeed();
+    checkTestNotifications();
 
     document.querySelectorAll(".exam-pill").forEach(btn => {
       btn.addEventListener("click", () => setExamFilter(btn.dataset.exam));
@@ -276,12 +425,13 @@
     };
 
     window.switchAdminSubTab = function(sub) {
-      ["ca", "static", "store"].forEach(s => {
+      ["ca", "examtest", "static", "store"].forEach(s => {
         document.getElementById(`admin-panel-${s}`).classList.add("hidden");
-        document.getElementById(`subtab-${s}`).className = "py-2 rounded-xl bg-slate-800 text-slate-300 text-[11px] font-semibold";
+        document.getElementById(`subtab-${s}`).className = "py-2 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-semibold";
       });
       document.getElementById(`admin-panel-${sub}`).classList.remove("hidden");
-      document.getElementById(`subtab-${sub}`).className = "py-2 rounded-xl bg-amber-500 text-slate-950 text-[11px] font-bold";
+      document.getElementById(`subtab-${sub}`).className = "py-2 rounded-xl bg-amber-500 text-slate-950 text-[10px] font-bold";
+      if (sub === "examtest") loadSpecificMocksAdminList();
       if (sub === "store") loadStoreAdminList();
     };
 
@@ -317,6 +467,7 @@
     });
 
     document.getElementById("publish-json-btn").addEventListener("click", publishFromJSON);
+    document.getElementById("publish-specific-mock-btn").addEventListener("click", publishSpecificMockTest);
     document.getElementById("publish-static-btn").addEventListener("click", publishStaticNote);
     document.getElementById("publish-store-btn").addEventListener("click", publishStoreItem);
     document.getElementById("gen-ppt-btn").addEventListener("click", generateYouTubeSlides);
