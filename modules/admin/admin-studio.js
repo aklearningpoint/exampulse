@@ -184,7 +184,7 @@ export async function compileAutoExamMockByDateRange() {
   }
 }
 
-// 3. YouTube Shorts & Video MCQ Slide Deck Generator (From Selected Date Range)
+// 3. YouTube Shorts & Video MCQ Slide Deck Generator (With Direct PDF Download Button)
 export async function generateMcqVideoSlides() {
   const fromDate = document.getElementById("mock-from-date").value;
   const toDate = document.getElementById("mock-to-date").value;
@@ -241,14 +241,15 @@ export async function generateMcqVideoSlides() {
     win.document.write(`
       <html>
       <head>
-        <title>ExamPulse YouTube MCQ Slides (${subExam})</title>
+        <title>ExamPulse_MCQ_Slides_${subExam}</title>
         <style>
           body { font-family: 'Segoe UI', system-ui, sans-serif; background: #090d16; color: white; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
-          .controls { position: sticky; top: 10px; z-index: 20; background: #1e293b; padding: 10px 16px; border-radius: 12px; display: flex; gap: 10px; margin-bottom: 20px; border: 1px solid #334155; }
-          .controls button { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 12px; }
+          .controls { position: sticky; top: 10px; z-index: 20; background: #1e293b; padding: 10px 14px; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+          .controls button { padding: 8px 12px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 12px; }
           .btn-short { background: #f59e0b; color: #0f172a; }
           .btn-wide { background: #38bdf8; color: #0f172a; }
           .btn-ans { background: #10b981; color: #0f172a; }
+          .btn-dl { background: #f43f5e; color: #ffffff; }
           .slide { width: 420px; min-height: 740px; background: linear-gradient(160deg, #0f172a 0%, #1e3a52 100%); border: 2px solid #334155; border-radius: 24px; padding: 26px; margin-bottom: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; page-break-after: always; }
           body.wide-mode .slide { width: 920px; min-height: 520px; }
           .top-bar { display: flex; justify-content: space-between; align-items: center; }
@@ -259,20 +260,26 @@ export async function generateMcqVideoSlides() {
           .q-hi { font-size: 16px; font-weight: 600; margin: 0; line-height: 1.4; color: #fde68a; border-top: 1px solid #334155; padding-top: 8px; }
           .opts { display: flex; flex-direction: column; gap: 10px; }
           .opt { background: rgba(255,255,255,0.07); border: 1.5px solid #475569; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-          .opt-key { background: #334155; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; shrink: 0; }
+          .opt-key { background: #334155; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
           .ans-tag { display: none; margin-left: auto; background: #10b981; color: #052e16; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 6px; }
           body.reveal-ans .correct-opt { background: rgba(16, 185, 129, 0.22); border-color: #10b981; }
           body.reveal-ans .correct-opt .opt-key { background: #10b981; color: #052e16; }
           body.reveal-ans .ans-tag { display: inline-block; }
           .exp-box { display: none; background: #422006; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #fef3c7; margin-top: 12px; }
           body.reveal-ans .exp-box { display: block; }
+          @media print {
+            body { background: #0f172a; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .controls { display: none; }
+            .slide { margin: 0 auto; border: none; border-radius: 0; }
+          }
         </style>
       </head>
       <body class="reveal-ans">
         <div class="controls">
-          <button class="btn-short" onclick="document.body.classList.remove('wide-mode')">📱 9:16 Shorts Mode</button>
-          <button class="btn-wide" onclick="document.body.classList.add('wide-mode')">🖥️ 16:9 Video Mode</button>
-          <button class="btn-ans" onclick="document.body.classList.toggle('reveal-ans')">👁️ Toggle Answer Reveal</button>
+          <button class="btn-short" onclick="document.body.classList.remove('wide-mode')">📱 9:16 Shorts</button>
+          <button class="btn-wide" onclick="document.body.classList.add('wide-mode')">🖥️ 16:9 Video</button>
+          <button class="btn-ans" onclick="document.body.classList.toggle('reveal-ans')">👁️ Answer Reveal</button>
+          <button class="btn-dl" onclick="window.print()">⬇️ Download PDF / Slides</button>
         </div>
         ${slidesHtml}
       </body>
