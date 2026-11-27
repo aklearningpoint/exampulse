@@ -1,7 +1,7 @@
 import { db, doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
 import { loadDailyFeed } from "../feed/feed-ui.js";
 
-// 1. Publish Daily CA & Quiz (Appends to existing date instead of overwriting)
+// 1. Publish Daily CA & Quiz
 export async function publishFromJSON() {
   const raw = document.getElementById("admin-json-input").value.trim();
   const statusEl = document.getElementById("admin-status");
@@ -15,7 +15,6 @@ export async function publishFromJSON() {
 
     statusEl.innerText = "Merging & Publishing to Firebase...";
 
-    // Check if document for this date already exists -> Append articles
     const feedRef = doc(db, "daily_feed", data.date);
     const existingFeed = await getDoc(feedRef);
     const prevArticles = existingFeed.exists() ? (existingFeed.data().articles || []) : [];
@@ -27,7 +26,6 @@ export async function publishFromJSON() {
       updatedAt: new Date().toISOString()
     });
 
-    // Check if quiz for this date already exists -> Append questions
     if (data.questions && data.questions.length > 0) {
       const quizRef = doc(db, "quizzes", `quiz_${data.date}`);
       const existingQuiz = await getDoc(quizRef);
@@ -39,6 +37,9 @@ export async function publishFromJSON() {
         date: data.date,
         title: `Daily CA Quiz (${data.date})`,
         category: "Daily CA",
+        exam_group: "ALL",
+        sub_exam: "Daily Current Affairs",
+        exam_year: data.date.slice(0, 4),
         duration_mins: Math.max(5, Math.ceil(mergedQuestions.length * 0.6)),
         negative_marking: 0.25,
         questions: mergedQuestions
@@ -54,7 +55,93 @@ export async function publishFromJSON() {
   }
 }
 
-// 2. Publish Static GK Topic Note
+// 2. Publish Dedicated Exam & Year-Wise Mock Test (e.g., SBI PO 2026, SSC CGL 2026)
+export async function publishSpecificMockTest() {
+  const examGroup = document.getElementById("mock-group-select").value;
+  const subExam = document.getElementById("mock-subexam-select").value;
+  const examYear = document.getElementById("mock-year-select").value;
+  const difficulty = document.getElementById("mock-level-select").value;
+  const title = document.getElementById("mock-title-input").value.trim();
+  const duration = parseInt(document.getElementById("mock-duration-input").value, 10) || 15;
+  const posMark = parseFloat(document.getElementById("mock-pos-input").value) || 1;
+  const negMark = parseFloat(document.getElementById("mock-neg-input").value) ?? 0.25;
+  const rawQuestions = document.getElementById("mock-questions-json").value.trim();
+  const statusEl = document.getElementById("mock-publish-status");
+
+  if (!title || !rawQuestions) {
+    return alert("Please enter Test Title and paste the Questions JSON array.");
+  }
+
+  try {
+    const parsed = JSON.parse(rawQuestions);
+    const questionsArr = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+    if (!questionsArr.length) {
+      throw new Error("Questions array cannot be empty.");
+    }
+
+    const taggedQuestions = questionsArr.map(q => ({
+      ...q,
+      exam_tag: examGroup,
+      sub_exam: subExam,
+      difficulty: q.difficulty || difficulty
+    }));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const slug = `${subExam.toLowerCase().replace(/[^a-z0-9]/g, "")}_${examYear.replace(/[^a-z0-9]/gi, "")}_${Date.now()}`;
+
+    await setDoc(doc(db, "quizzes", slug), {
+      id: slug,
+      date: today,
+      title,
+      category: `${subExam} ${examYear}`,
+      exam_group: examGroup,
+      sub_exam: subExam,
+      exam_year: examYear,
+      difficulty,
+      is_specific_mock: true,
+      duration_mins: duration,
+      positive_marking: posMark,
+      negative_marking: negMark,
+      questions: taggedQuestions
+    });
+
+    statusEl.innerText = `Published "${title}" (${taggedQuestions.length} Qs) live!`;
+    document.getElementById("mock-title-input").value = "";
+    document.getElementById("mock-questions-json").value = "";
+    loadSpecificMocksAdminList();
+  } catch (err) {
+    statusEl.innerText = `Error: ${err.message}`;
+  }
+}
+
+export async function loadSpecificMocksAdminList() {
+  const listEl = document.getElementById("admin-specific-mocks-list");
+  if (!listEl) return;
+  const q = query(collection(db, "quizzes"), orderBy("date", "desc"), limit(20));
+  const snap = await getDocs(q);
+
+  const specificDocs = snap.docs.filter(d => d.data().is_specific_mock);
+  listEl.innerHTML = specificDocs.length ? specificDocs.map(d => {
+    const m = d.data();
+    return `
+      <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-2">
+        <div>
+          <span class="px-2 py-0.5 rounded bg-[#285577] text-white text-[9px] font-bold uppercase">${m.sub_exam} • ${m.exam_year}</span>
+          <p class="text-xs font-bold text-slate-800 dark:text-white mt-1">${m.title}</p>
+          <p class="text-[10px] text-slate-500">${(m.questions || []).length} Qs • ${m.difficulty}</p>
+        </div>
+        <button onclick="window.deleteSpecificMock('${d.id}')" class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">Delete</button>
+      </div>`;
+  }).join("") : `<p class="text-xs text-slate-400">No specific exam mocks published yet.</p>`;
+}
+
+window.deleteSpecificMock = async function(quizId) {
+  if (!confirm("Delete this mock test permanently?")) return;
+  await deleteDoc(doc(db, "quizzes", quizId));
+  loadSpecificMocksAdminList();
+};
+
+// 3. Publish Static GK Topic Note
 export async function publishStaticNote() {
   const subject = document.getElementById("static-subject-select").value;
   const title = document.getElementById("static-title-input").value.trim();
@@ -80,7 +167,7 @@ export async function publishStaticNote() {
   }
 }
 
-// 3. Publish PDF or Course to Store
+// 4. Publish PDF or Course to Store
 export async function publishStoreItem() {
   const type = document.getElementById("store-type-select").value;
   const title = document.getElementById("store-title-input").value.trim();
@@ -163,7 +250,7 @@ window.loadDocToEditor = async function(dateStr) {
     questions: quizSnap.exists() ? quizSnap.data().questions : []
   };
   document.getElementById("admin-json-input").value = JSON.stringify(combined, null, 2);
-  document.getElementById("admin-status").innerText = `Loaded ${dateStr} into editor (Note: Editing here will append unless you delete old date first).`;
+  document.getElementById("admin-status").innerText = `Loaded ${dateStr} into editor.`;
 };
 
 window.deleteFeedDoc = async function(dateStr) {
