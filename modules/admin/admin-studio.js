@@ -1,4 +1,4 @@
-import { db, doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
+import { db, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
 import { loadDailyFeed } from "../feed/feed-ui.js";
 
 function chunkIntoTens(arr) {
@@ -7,6 +7,62 @@ function chunkIntoTens(arr) {
     chunks.push(arr.slice(i, i + 10));
   }
   return chunks;
+}
+
+// Fisher-Yates Unbiased Random Shuffle
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function normalizeLevel(q) {
+  const raw = String(q.difficulty || q.level || "").toLowerCase();
+  if (raw.includes("high") || raw.includes("hard") || raw.includes("mains") || raw.includes("tier-2")) return "High";
+  if (raw.includes("easy") || raw.includes("prelims") || raw.includes("mts") || raw.includes("gd") || raw.includes("clerk")) return "Easy";
+  return "Moderate";
+}
+
+function matchesFilter(qObj, examGroup, levelFilter) {
+  if (examGroup !== "ALL") {
+    const tag = String(qObj.exam_tag || (qObj.exams || []).join(" ") || "ALL").toUpperCase();
+    if (tag !== "ALL" && tag !== "ALL EXAMS") {
+      if (examGroup === "UPSC/PCS") {
+        if (!tag.includes("UPSC") && !tag.includes("PCS")) return false;
+      } else if (!tag.includes(examGroup.toUpperCase())) {
+        return false;
+      }
+    }
+  }
+  if (levelFilter !== "ALL" && normalizeLevel(qObj) !== levelFilter) return false;
+  return true;
+}
+
+// Helper: Fetch & Shuffle Questions Across a Date Range from Firestore
+async function collectQuestionsInDateRange(fromDate, toDate, examGroup, levelFilter) {
+  const q = query(
+    collection(db, "quizzes"),
+    where("date", ">=", fromDate),
+    where("date", "<=", toDate),
+    orderBy("date", "desc")
+  );
+  const snap = await getDocs(q);
+
+  const uniqueMap = new Map();
+  snap.docs.forEach(d => {
+    const data = d.data();
+    if (data.is_specific_mock) return; // Pull from original daily question bank
+    (data.questions || []).forEach(item => {
+      if (matchesFilter(item, examGroup, levelFilter)) {
+        uniqueMap.set(item.question_en, { ...item, _sourceDate: data.date });
+      }
+    });
+  });
+
+  return shuffleArray(Array.from(uniqueMap.values()));
 }
 
 // 1. Publish Daily CA & Quiz
@@ -63,56 +119,54 @@ export async function publishFromJSON() {
   }
 }
 
-// 2. Publish Specific Exam Mock Automatically Split into 10-Question Sets
-export async function publishSpecificMockTest() {
+// 2. Zero-JSON Date-Range Auto-Shuffled Exam Mock Compiler (Splits into 10-Q Sets)
+export async function compileAutoExamMockByDateRange() {
+  const fromDate = document.getElementById("mock-from-date").value;
+  const toDate = document.getElementById("mock-to-date").value;
   const examGroup = document.getElementById("mock-group-select").value;
   const subExam = document.getElementById("mock-subexam-select").value;
   const examYear = document.getElementById("mock-year-select").value;
-  const difficulty = document.getElementById("mock-level-select").value;
-  const baseTitle = document.getElementById("mock-title-input").value.trim();
+  const levelFilter = document.getElementById("mock-level-select").value;
+  const requestedCount = parseInt(document.getElementById("mock-qcount-input").value, 10) || 20;
+  const customTitle = document.getElementById("mock-title-input").value.trim();
   const durationPerSet = parseInt(document.getElementById("mock-duration-input").value, 10) || 8;
   const posMark = parseFloat(document.getElementById("mock-pos-input").value) || 1;
   const negMark = parseFloat(document.getElementById("mock-neg-input").value) ?? 0.25;
-  const rawQuestions = document.getElementById("mock-questions-json").value.trim();
   const statusEl = document.getElementById("mock-publish-status");
 
-  if (!baseTitle || !rawQuestions) {
-    return alert("Please enter Test Title and paste the Questions JSON array.");
-  }
+  if (!fromDate || !toDate) return alert("Please select both From Date and To Date.");
+
+  statusEl.innerText = "Collecting & shuffling questions from selected date range...";
 
   try {
-    const parsed = JSON.parse(rawQuestions);
-    const questionsArr = Array.isArray(parsed) ? parsed : (parsed.questions || []);
-    if (!questionsArr.length) {
-      throw new Error("Questions array cannot be empty.");
+    const shuffledPool = await collectQuestionsInDateRange(fromDate, toDate, examGroup, levelFilter);
+    if (!shuffledPool.length) {
+      statusEl.innerText = "No matching questions found in this date range. Try expanding dates or setting Level to 'All Levels'.";
+      return;
     }
 
-    const taggedQuestions = questionsArr.map(q => ({
-      ...q,
-      exam_tag: examGroup,
-      sub_exam: subExam,
-      difficulty: q.difficulty || difficulty
-    }));
-
-    const tenQuestionSets = chunkIntoTens(taggedQuestions);
+    const selectedQuestions = shuffledPool.slice(0, requestedCount);
+    const tenQuestionSets = chunkIntoTens(selectedQuestions);
     const today = new Date().toISOString().slice(0, 10);
     const batchStamp = Date.now();
+    const baseTitle = customTitle || `${subExam} ${examYear} Current Affairs Mock (${fromDate} to ${toDate})`;
 
     for (let i = 0; i < tenQuestionSets.length; i++) {
       const setQs = tenQuestionSets[i];
       const setNumber = i + 1;
-      const setTitle = tenQuestionSets.length > 1 ? `${baseTitle} — Set ${setNumber}` : `${baseTitle} (Set 1)`;
+      const setTitle = `${baseTitle} — Set ${setNumber}`;
       const slug = `${subExam.toLowerCase().replace(/[^a-z0-9]/g, "")}_${examYear.replace(/[^a-z0-9]/gi, "")}_set${setNumber}_${batchStamp}`;
 
       await setDoc(doc(db, "quizzes", slug), {
         id: slug,
         date: today,
+        source_range: `${fromDate} to ${toDate}`,
         title: setTitle,
         category: `${subExam} ${examYear}`,
         exam_group: examGroup,
         sub_exam: subExam,
         exam_year: examYear,
-        difficulty,
+        difficulty: levelFilter === "ALL" ? "Moderate" : levelFilter,
         set_number: setNumber,
         is_specific_mock: true,
         duration_mins: durationPerSet,
@@ -122,10 +176,109 @@ export async function publishSpecificMockTest() {
       });
     }
 
-    statusEl.innerText = `Published ${tenQuestionSets.length} Set(s) of 10 Questions (${taggedQuestions.length} Total Qs)!`;
+    statusEl.innerText = `Success! Compiled & published ${tenQuestionSets.length} Shuffled Set(s) (${selectedQuestions.length} Qs total) for ${subExam} ${examYear}!`;
     document.getElementById("mock-title-input").value = "";
-    document.getElementById("mock-questions-json").value = "";
     loadSpecificMocksAdminList();
+  } catch (err) {
+    statusEl.innerText = `Error: ${err.message}`;
+  }
+}
+
+// 3. YouTube Shorts & Video MCQ Slide Deck Generator (From Selected Date Range)
+export async function generateMcqVideoSlides() {
+  const fromDate = document.getElementById("mock-from-date").value;
+  const toDate = document.getElementById("mock-to-date").value;
+  const examGroup = document.getElementById("mock-group-select").value;
+  const subExam = document.getElementById("mock-subexam-select").value;
+  const levelFilter = document.getElementById("mock-level-select").value;
+  const requestedCount = Math.min(parseInt(document.getElementById("mock-qcount-input").value, 10) || 15, 30);
+  const statusEl = document.getElementById("mock-publish-status");
+
+  if (!fromDate || !toDate) return alert("Please select From Date and To Date first.");
+  statusEl.innerText = "Building YouTube MCQ Slides...";
+
+  try {
+    const pool = await collectQuestionsInDateRange(fromDate, toDate, examGroup, levelFilter);
+    if (!pool.length) {
+      statusEl.innerText = "No MCQs found in this date range for slides.";
+      return;
+    }
+
+    const slidesData = pool.slice(0, requestedCount);
+    statusEl.innerText = `Opened ${slidesData.length} YouTube MCQ Slides in new tab!`;
+
+    const win = window.open("", "_blank");
+    const slidesHtml = slidesData.map((q, idx) => `
+      <section class="slide">
+        <div class="top-bar">
+          <span class="badge">ExamPulse • ${subExam}</span>
+          <span class="qnum">Q.${idx + 1} / ${slidesData.length}</span>
+        </div>
+
+        <div class="q-box">
+          <p class="q-en">${q.question_en}</p>
+          ${q.question_hi ? `<p class="q-hi">${q.question_hi}</p>` : ""}
+        </div>
+
+        <div class="opts">
+          ${(q.options || []).map((opt, i) => `
+            <div class="opt ${i === q.correct_index ? "correct-opt" : ""}">
+              <span class="opt-key">${String.fromCharCode(65 + i)}</span>
+              <span>${opt}</span>
+              ${i === q.correct_index ? `<span class="ans-tag">✓ CORRECT</span>` : ""}
+            </div>
+          `).join("")}
+        </div>
+
+        ${q.explanation_en ? `
+          <div class="exp-box">
+            <strong>💡 Key Point:</strong> ${q.explanation_en}
+          </div>
+        ` : ""}
+      </section>
+    `).join("");
+
+    win.document.write(`
+      <html>
+      <head>
+        <title>ExamPulse YouTube MCQ Slides (${subExam})</title>
+        <style>
+          body { font-family: 'Segoe UI', system-ui, sans-serif; background: #090d16; color: white; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+          .controls { position: sticky; top: 10px; z-index: 20; background: #1e293b; padding: 10px 16px; border-radius: 12px; display: flex; gap: 10px; margin-bottom: 20px; border: 1px solid #334155; }
+          .controls button { padding: 8px 14px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 12px; }
+          .btn-short { background: #f59e0b; color: #0f172a; }
+          .btn-wide { background: #38bdf8; color: #0f172a; }
+          .btn-ans { background: #10b981; color: #0f172a; }
+          .slide { width: 420px; min-height: 740px; background: linear-gradient(160deg, #0f172a 0%, #1e3a52 100%); border: 2px solid #334155; border-radius: 24px; padding: 26px; margin-bottom: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; page-break-after: always; }
+          body.wide-mode .slide { width: 920px; min-height: 520px; }
+          .top-bar { display: flex; justify-content: space-between; align-items: center; }
+          .badge { background: #f59e0b; color: #0f172a; padding: 5px 12px; border-radius: 99px; font-weight: 900; font-size: 12px; text-transform: uppercase; }
+          .qnum { font-weight: 800; font-size: 14px; color: #94a3b8; }
+          .q-box { background: rgba(15, 23, 42, 0.75); border: 1px solid #334155; padding: 16px; border-radius: 16px; margin: 14px 0; }
+          .q-en { font-size: 18px; font-weight: 700; margin: 0 0 8px; line-height: 1.4; color: #f8fafc; }
+          .q-hi { font-size: 16px; font-weight: 600; margin: 0; line-height: 1.4; color: #fde68a; border-top: 1px solid #334155; padding-top: 8px; }
+          .opts { display: flex; flex-direction: column; gap: 10px; }
+          .opt { background: rgba(255,255,255,0.07); border: 1.5px solid #475569; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+          .opt-key { background: #334155; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; shrink: 0; }
+          .ans-tag { display: none; margin-left: auto; background: #10b981; color: #052e16; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 6px; }
+          body.reveal-ans .correct-opt { background: rgba(16, 185, 129, 0.22); border-color: #10b981; }
+          body.reveal-ans .correct-opt .opt-key { background: #10b981; color: #052e16; }
+          body.reveal-ans .ans-tag { display: inline-block; }
+          .exp-box { display: none; background: #422006; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #fef3c7; margin-top: 12px; }
+          body.reveal-ans .exp-box { display: block; }
+        </style>
+      </head>
+      <body class="reveal-ans">
+        <div class="controls">
+          <button class="btn-short" onclick="document.body.classList.remove('wide-mode')">📱 9:16 Shorts Mode</button>
+          <button class="btn-wide" onclick="document.body.classList.add('wide-mode')">🖥️ 16:9 Video Mode</button>
+          <button class="btn-ans" onclick="document.body.classList.toggle('reveal-ans')">👁️ Toggle Answer Reveal</button>
+        </div>
+        ${slidesHtml}
+      </body>
+      </html>
+    `);
+    win.document.close();
   } catch (err) {
     statusEl.innerText = `Error: ${err.message}`;
   }
@@ -158,11 +311,11 @@ window.deleteSpecificMock = async function(quizId) {
   loadSpecificMocksAdminList();
 };
 
-// 3. 1-Click Weekly (7d) & Monthly (30d) In-App E-Book Compiler & Direct Store Publisher
+// 4. Weekly/Monthly Current Affairs News E-Book Publisher
 export async function compileAndPreviewEbook(daysCount = 7) {
   const statusEl = document.getElementById("ebook-compile-status");
   const periodLabel = daysCount === 7 ? "Weekly" : "Monthly";
-  statusEl.innerText = `Compiling & Publishing ${periodLabel} In-App E-Book...`;
+  statusEl.innerText = `Compiling & Publishing ${periodLabel} News E-Book...`;
 
   try {
     const feedSnap = await getDocs(query(collection(db, "daily_feed"), orderBy("date", "desc"), limit(daysCount)));
@@ -176,16 +329,9 @@ export async function compileAndPreviewEbook(daysCount = 7) {
     const datesList = feedSnap.docs.map(d => d.data().date).filter(Boolean);
     const dateRange = datesList.length ? `${datesList[datesList.length - 1]} to ${datesList[0]}` : new Date().toISOString().slice(0, 10);
 
-    const chapters = {
-      national: [],
-      banking: [],
-      ssc: [],
-      railway: [],
-      upsc: [],
-      static_gk: []
-    };
-
+    const chapters = { national: [], banking: [], ssc: [], railway: [], upsc: [], static_gk: [] };
     let totalArticles = 0;
+
     feedSnap.docs.forEach(d => {
       const data = d.data();
       (data.articles || []).forEach(art => {
@@ -217,20 +363,17 @@ export async function compileAndPreviewEbook(daysCount = 7) {
 
     staticSnap.docs.forEach(d => {
       const s = d.data();
-      chapters.static_gk.push({
-        subject: s.subject || "Static GK",
-        title: s.title || "",
-        content: s.content || ""
-      });
+      chapters.static_gk.push({ subject: s.subject || "Static GK", title: s.title || "", content: s.content || "" });
     });
 
-    const ebookId = `ebook_${periodLabel.toLowerCase()}_${Date.now()}`;
+    const ebookId = `ebook_news_${periodLabel.toLowerCase()}_${Date.now()}`;
     const ebookTitle = `${periodLabel} Current Affairs & Static GK E-Book (${dateRange})`;
     const ebookDesc = `${totalArticles} Categorized News + ${chapters.static_gk.length} Static GK Capsules (National, Banking, SSC, Railway, UPSC/PCS)`;
 
     await setDoc(doc(db, "pdf_store", ebookId), {
       id: ebookId,
       type: "ebook",
+      ebook_format: "news",
       period: periodLabel,
       date_range: dateRange,
       title: ebookTitle,
@@ -245,11 +388,79 @@ export async function compileAndPreviewEbook(daysCount = 7) {
     statusEl.innerText = `Published "${ebookTitle}" to E-Book Store at ₹0 (6-Month Validity)!`;
     loadStoreAdminList();
   } catch (err) {
-    statusEl.innerText = `Error publishing E-Book: ${err.message}`;
+    statusEl.innerText = `Error publishing News E-Book: ${err.message}`;
   }
 }
 
-// 4. Publish Static GK Topic Note
+// 5. Weekly/Monthly Categorized MCQ Question Bank E-Book Publisher
+export async function compileAndPublishMcqEbook(daysCount = 7) {
+  const statusEl = document.getElementById("ebook-compile-status");
+  const periodLabel = daysCount === 7 ? "Weekly" : "Monthly";
+  statusEl.innerText = `Compiling & Publishing ${periodLabel} Categorized MCQ E-Book...`;
+
+  try {
+    const qSnap = await getDocs(query(collection(db, "quizzes"), orderBy("date", "desc"), limit(daysCount)));
+    const dailyDocs = qSnap.docs.filter(d => !d.data().is_specific_mock);
+
+    if (!dailyDocs.length) {
+      statusEl.innerText = "No published quizzes found to compile MCQ E-Book.";
+      return;
+    }
+
+    const datesList = dailyDocs.map(d => d.data().date).filter(Boolean);
+    const dateRange = datesList.length ? `${datesList[datesList.length - 1]} to ${datesList[0]}` : new Date().toISOString().slice(0, 10);
+
+    const mcqChapters = { national: [], banking: [], ssc: [], railway: [], upsc: [] };
+    let totalMcqs = 0;
+
+    dailyDocs.forEach(d => {
+      const data = d.data();
+      (data.questions || []).forEach(q => {
+        totalMcqs++;
+        const compactQ = {
+          date: data.date || "",
+          question_en: q.question_en || "",
+          question_hi: q.question_hi || "",
+          options: q.options || [],
+          correct_index: q.correct_index ?? 0,
+          explanation_en: q.explanation_en || ""
+        };
+        const tag = String(q.exam_tag || (q.exams || []).join(" ") || "").toUpperCase();
+        if (tag.includes("BANK")) mcqChapters.banking.push(compactQ);
+        else if (tag.includes("RAILWAY")) mcqChapters.railway.push(compactQ);
+        else if (tag.includes("UPSC") || tag.includes("PCS")) mcqChapters.upsc.push(compactQ);
+        else if (tag.includes("SSC")) mcqChapters.ssc.push(compactQ);
+        else mcqChapters.national.push(compactQ);
+      });
+    });
+
+    const ebookId = `ebook_mcq_${periodLabel.toLowerCase()}_${Date.now()}`;
+    const ebookTitle = `${periodLabel} 100% Exam-Oriented MCQ Bank E-Book (${dateRange})`;
+    const ebookDesc = `${totalMcqs} Bilingual MCQs with Answer Key & Explanations (Categorized for Banking, SSC, Railway, UPSC/PCS & National)`;
+
+    await setDoc(doc(db, "pdf_store", ebookId), {
+      id: ebookId,
+      type: "ebook",
+      ebook_format: "mcq",
+      period: `${periodLabel} MCQ`,
+      date_range: dateRange,
+      title: ebookTitle,
+      description: ebookDesc,
+      price: 0,
+      validity_months: 6,
+      buyers_count: 0,
+      mcq_chapters: mcqChapters,
+      createdAt: new Date().toISOString()
+    });
+
+    statusEl.innerText = `Published "${ebookTitle}" (${totalMcqs} MCQs) to E-Book Store at ₹0!`;
+    loadStoreAdminList();
+  } catch (err) {
+    statusEl.innerText = `Error publishing MCQ E-Book: ${err.message}`;
+  }
+}
+
+// 6. Publish Static GK Topic Note
 export async function publishStaticNote() {
   const subject = document.getElementById("static-subject-select").value;
   const title = document.getElementById("static-title-input").value.trim();
@@ -270,41 +481,6 @@ export async function publishStaticNote() {
     statusEl.innerText = "Static GK note published successfully.";
     document.getElementById("static-title-input").value = "";
     document.getElementById("static-content-input").value = "";
-  } catch (err) {
-    statusEl.innerText = `Error: ${err.message}`;
-  }
-}
-
-// 5. Publish Manual Store Item
-export async function publishStoreItem() {
-  const type = document.getElementById("store-type-select").value;
-  const title = document.getElementById("store-title-input").value.trim();
-  const desc = document.getElementById("store-desc-input").value.trim();
-  const price = parseFloat(document.getElementById("store-price-input").value) || 0;
-  const url = document.getElementById("store-url-input").value.trim();
-  const statusEl = document.getElementById("store-status");
-
-  if (!title || !url) return alert("Please provide Title and Resource Link.");
-
-  try {
-    const itemId = `${type}_${Date.now()}`;
-    await setDoc(doc(db, "pdf_store", itemId), {
-      id: itemId,
-      type,
-      title,
-      description: desc,
-      price,
-      validity_months: 6,
-      buyers_count: 0,
-      file_url: url,
-      createdAt: new Date().toISOString()
-    });
-    statusEl.innerText = `${type.toUpperCase()} published to Store successfully!`;
-    document.getElementById("store-title-input").value = "";
-    document.getElementById("store-desc-input").value = "";
-    document.getElementById("store-price-input").value = "";
-    document.getElementById("store-url-input").value = "";
-    loadStoreAdminList();
   } catch (err) {
     statusEl.innerText = `Error: ${err.message}`;
   }
@@ -375,7 +551,7 @@ window.deleteFeedDoc = async function(dateStr) {
 };
 
 window.deleteStoreItem = async function(itemId) {
-  if (!confirm("Delete this E-Book/item from the Store?")) return;
+  if (!confirm("Delete this E-Book from the Store?")) return;
   await deleteDoc(doc(db, "pdf_store", itemId));
   loadStoreAdminList();
 };
