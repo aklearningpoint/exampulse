@@ -1,7 +1,6 @@
 import { db, doc, setDoc, getDoc, collection, getDocs, query, orderBy, limit, deleteDoc } from "../../core/firebase-config.js";
 import { loadDailyFeed } from "../feed/feed-ui.js";
 
-// Helper: Split any array into chunks of 10
 function chunkIntoTens(arr) {
   const chunks = [];
   for (let i = 0; i < arr.length; i += 10) {
@@ -159,11 +158,11 @@ window.deleteSpecificMock = async function(quizId) {
   loadSpecificMocksAdminList();
 };
 
-// 3. 1-Click Weekly (7 Days) & Monthly (30 Days) Categorized E-Book Compiler
+// 3. 1-Click Weekly (7d) & Monthly (30d) In-App E-Book Compiler & Direct Store Publisher
 export async function compileAndPreviewEbook(daysCount = 7) {
   const statusEl = document.getElementById("ebook-compile-status");
   const periodLabel = daysCount === 7 ? "Weekly" : "Monthly";
-  statusEl.innerText = `Compiling ${periodLabel} E-Book from last ${daysCount} days of news & static GK...`;
+  statusEl.innerText = `Compiling & Publishing ${periodLabel} In-App E-Book...`;
 
   try {
     const feedSnap = await getDocs(query(collection(db, "daily_feed"), orderBy("date", "desc"), limit(daysCount)));
@@ -177,13 +176,13 @@ export async function compileAndPreviewEbook(daysCount = 7) {
     const datesList = feedSnap.docs.map(d => d.data().date).filter(Boolean);
     const dateRange = datesList.length ? `${datesList[datesList.length - 1]} to ${datesList[0]}` : new Date().toISOString().slice(0, 10);
 
-    // Categorized Buckets
-    const buckets = {
+    const chapters = {
       national: [],
       banking: [],
       ssc: [],
       railway: [],
-      upsc: []
+      upsc: [],
+      static_gk: []
     };
 
     let totalArticles = 0;
@@ -191,137 +190,62 @@ export async function compileAndPreviewEbook(daysCount = 7) {
       const data = d.data();
       (data.articles || []).forEach(art => {
         totalArticles++;
-        const item = { ...art, _date: data.date };
+        const compactItem = {
+          date: data.date || "",
+          category: art.category || "General",
+          title_en: art.title_en || "",
+          title_hi: art.title_hi || "",
+          facts_en: art.key_facts_en || [],
+          static_en: art.static_gk_en || ""
+        };
         const examsStr = (art.exams || []).join(" ").toUpperCase();
         const catStr = String(art.category || "").toUpperCase();
 
         if (examsStr.includes("BANK") || catStr.includes("BANK") || catStr.includes("ECONOMY") || catStr.includes("FINANC")) {
-          buckets.banking.push(item);
+          chapters.banking.push(compactItem);
         } else if (examsStr.includes("RAILWAY")) {
-          buckets.railway.push(item);
+          chapters.railway.push(compactItem);
         } else if (examsStr.includes("UPSC") || examsStr.includes("PCS") || catStr.includes("POLITY") || catStr.includes("INTERNATIONAL")) {
-          buckets.upsc.push(item);
+          chapters.upsc.push(compactItem);
         } else if (examsStr.includes("SSC")) {
-          buckets.ssc.push(item);
+          chapters.ssc.push(compactItem);
         } else {
-          buckets.national.push(item);
+          chapters.national.push(compactItem);
         }
       });
     });
 
-    const staticNotes = staticSnap.docs.map(d => d.data());
+    staticSnap.docs.forEach(d => {
+      const s = d.data();
+      chapters.static_gk.push({
+        subject: s.subject || "Static GK",
+        title: s.title || "",
+        content: s.content || ""
+      });
+    });
 
-    // Pre-fill the PDF Store form below so admin can publish immediately after saving PDF
-    const autoTitle = `ExamPulse ${periodLabel} Current Affairs & Static GK E-Book (${dateRange})`;
-    const autoDesc = `${totalArticles} Categorized News + ${staticNotes.length} Static GK Capsules (National, Banking, SSC, Railway & UPSC/PCS)`;
-    document.getElementById("store-type-select").value = "pdf";
-    document.getElementById("store-title-input").value = autoTitle;
-    document.getElementById("store-desc-input").value = autoDesc;
+    const ebookId = `ebook_${periodLabel.toLowerCase()}_${Date.now()}`;
+    const ebookTitle = `${periodLabel} Current Affairs & Static GK E-Book (${dateRange})`;
+    const ebookDesc = `${totalArticles} Categorized News + ${chapters.static_gk.length} Static GK Capsules (National, Banking, SSC, Railway, UPSC/PCS)`;
 
-    statusEl.innerText = `Compiled ${totalArticles} articles & ${staticNotes.length} static notes! Print window opened — Save as PDF, upload to Drive, and click 'Publish E-Book to Store' below.`;
+    await setDoc(doc(db, "pdf_store", ebookId), {
+      id: ebookId,
+      type: "ebook",
+      period: periodLabel,
+      date_range: dateRange,
+      title: ebookTitle,
+      description: ebookDesc,
+      price: 0,
+      validity_months: 6,
+      buyers_count: 0,
+      chapters,
+      createdAt: new Date().toISOString()
+    });
 
-    // Open Print-Ready Categorized E-Book Magazine Window
-    const renderSection = (secTitle, badgeColor, items) => {
-      if (!items.length) return "";
-      return `
-        <div class="chapter">
-          <div class="chapter-header" style="border-left: 6px solid ${badgeColor};">
-            <h2>${secTitle} (${items.length})</h2>
-          </div>
-          ${items.map((a, idx) => `
-            <div class="article-card">
-              <div class="meta">${a.category || "General"} • ${a._date || ""} • Exams: ${(a.exams || ["All Exams"]).join(", ")}</div>
-              <h3>${idx + 1}. ${a.title_en}</h3>
-              ${a.title_hi ? `<h4 class="hi">${a.title_hi}</h4>` : ""}
-              <ul>
-                ${(a.key_facts_en || []).map(f => `<li>${f}</li>`).join("")}
-              </ul>
-              ${a.static_gk_en ? `<div class="static-pill"><strong>360° Static Link:</strong> ${a.static_gk_en}</div>` : ""}
-            </div>
-          `).join("")}
-        </div>
-      `;
-    };
-
-    const staticHtml = staticNotes.length ? `
-      <div class="chapter">
-        <div class="chapter-header" style="border-left: 6px solid #7c3aed;">
-          <h2>Chapter 6: 360° Static GK Revision Notes (${staticNotes.length})</h2>
-        </div>
-        ${staticNotes.map((s, idx) => `
-          <div class="article-card">
-            <div class="meta">Subject: ${String(s.subject || "Static GK").toUpperCase()}</div>
-            <h3>${idx + 1}. ${s.title}</h3>
-            <p style="white-space: pre-line; font-size: 13px; color: #334155;">${s.content}</p>
-          </div>
-        `).join("")}
-      </div>
-    ` : "";
-
-    const win = window.open("", "_blank");
-    win.document.write(`
-      <html>
-      <head>
-        <title>${autoTitle}</title>
-        <style>
-          body { font-family: 'Segoe UI', system-ui, sans-serif; color: #0f172a; margin: 0; padding: 24px; background: #f8fafc; line-height: 1.55; }
-          .toolbar { position: sticky; top: 0; background: #0f172a; color: white; padding: 12px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; z-index: 10; }
-          .btn { background: #f59e0b; color: #0f172a; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 13px; }
-          .cover { background: linear-gradient(135deg, #0f172a, #285577); color: white; padding: 48px 36px; border-radius: 20px; text-align: center; margin-bottom: 32px; page-break-after: always; }
-          .cover h1 { font-size: 32px; margin: 12px 0; }
-          .cover p { color: #cbd5e1; font-size: 15px; }
-          .toc { background: white; border: 1px solid #cbd5e1; border-radius: 14px; padding: 20px; margin-bottom: 28px; }
-          .chapter { margin-bottom: 32px; page-break-before: always; }
-          .chapter-header { background: #e2e8f0; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; }
-          .chapter-header h2 { margin: 0; font-size: 18px; color: #0f172a; }
-          .article-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 14px; page-break-inside: avoid; }
-          .meta { font-size: 11px; font-weight: 700; color: #285577; text-transform: uppercase; margin-bottom: 4px; }
-          h3 { margin: 0 0 4px; font-size: 16px; color: #0f172a; }
-          h4.hi { margin: 0 0 8px; font-size: 14px; color: #475569; font-weight: 600; }
-          ul { margin: 8px 0; padding-left: 18px; font-size: 13px; color: #1e293b; }
-          li { margin-bottom: 4px; }
-          .static-pill { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; border-radius: 6px; font-size: 12px; color: #78350f; margin-top: 8px; }
-          @media print {
-            body { background: white; padding: 0; }
-            .toolbar { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="toolbar">
-          <span><strong>ExamPulse E-Book Studio</strong> • Ready to Export PDF</span>
-          <button class="btn" onclick="window.print()">🖨️ Save as PDF E-Book</button>
-        </div>
-
-        <div class="cover">
-          <div style="font-size:13px; letter-spacing:2px; color:#fbbf24; font-weight:800;">EXAMPULSE COMPETITIVE DIGEST</div>
-          <h1>${periodLabel} Current Affairs & Static GK E-Book</h1>
-          <p>Coverage Period: <strong>${dateRange}</strong></p>
-          <p style="margin-top:20px; font-size:13px;">Categorized for Banking • SSC • Railway • UPSC & State PCS</p>
-        </div>
-
-        <div class="toc">
-          <h3 style="margin-bottom:10px;">📑 E-Book Index</h3>
-          <p style="font-size:13px; margin:4px 0;">1. National & General Current Affairs (${buckets.national.length} Topics)</p>
-          <p style="font-size:13px; margin:4px 0;">2. Banking & Financial Awareness (${buckets.banking.length} Topics)</p>
-          <p style="font-size:13px; margin:4px 0;">3. SSC Exam Special Digest (${buckets.ssc.length} Topics)</p>
-          <p style="font-size:13px; margin:4px 0;">4. Railway Exam Special Digest (${buckets.railway.length} Topics)</p>
-          <p style="font-size:13px; margin:4px 0;">5. UPSC & State PCS Analytical Digest (${buckets.upsc.length} Topics)</p>
-          <p style="font-size:13px; margin:4px 0;">6. 360° Static GK Revision Notes (${staticNotes.length} Chapters)</p>
-        </div>
-
-        ${renderSection("Chapter 1: National & General Current Affairs", "#0284c7", buckets.national)}
-        ${renderSection("Chapter 2: Banking & Financial Awareness", "#059669", buckets.banking)}
-        ${renderSection("Chapter 3: SSC Exam Special Digest", "#d97706", buckets.ssc)}
-        ${renderSection("Chapter 4: Railway Exam Special Digest", "#dc2626", buckets.railway)}
-        ${renderSection("Chapter 5: UPSC & State PCS Analytical Digest", "#4f46e5", buckets.upsc)}
-        ${staticHtml}
-      </body>
-      </html>
-    `);
-    win.document.close();
+    statusEl.innerText = `Published "${ebookTitle}" to E-Book Store at ₹0 (6-Month Validity)!`;
+    loadStoreAdminList();
   } catch (err) {
-    statusEl.innerText = `Error compiling E-Book: ${err.message}`;
+    statusEl.innerText = `Error publishing E-Book: ${err.message}`;
   }
 }
 
@@ -351,7 +275,7 @@ export async function publishStaticNote() {
   }
 }
 
-// 5. Publish PDF or E-Book to Store
+// 5. Publish Manual Store Item
 export async function publishStoreItem() {
   const type = document.getElementById("store-type-select").value;
   const title = document.getElementById("store-title-input").value.trim();
@@ -360,7 +284,7 @@ export async function publishStoreItem() {
   const url = document.getElementById("store-url-input").value.trim();
   const statusEl = document.getElementById("store-status");
 
-  if (!title || !url) return alert("Please provide Title and Google Drive PDF Link.");
+  if (!title || !url) return alert("Please provide Title and Resource Link.");
 
   try {
     const itemId = `${type}_${Date.now()}`;
@@ -370,6 +294,8 @@ export async function publishStoreItem() {
       title,
       description: desc,
       price,
+      validity_months: 6,
+      buyers_count: 0,
       file_url: url,
       createdAt: new Date().toISOString()
     });
@@ -393,9 +319,9 @@ export async function loadRecentAdminDocs() {
   listEl.innerHTML = snap.docs.map(d => {
     const item = d.data();
     return `
-      <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
+      <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-2">
         <div>
-          <p class="text-xs font-bold text-slate-800">${item.date}</p>
+          <p class="text-xs font-bold text-slate-800 dark:text-white">${item.date}</p>
           <p class="text-[11px] text-slate-500">${(item.articles || []).length} Articles</p>
         </div>
         <div class="flex gap-2">
@@ -409,16 +335,19 @@ export async function loadRecentAdminDocs() {
 export async function loadStoreAdminList() {
   const listEl = document.getElementById("admin-store-list");
   if (!listEl) return;
-  const q = query(collection(db, "pdf_store"), orderBy("createdAt", "desc"), limit(10));
+  const q = query(collection(db, "pdf_store"), orderBy("createdAt", "desc"), limit(15));
   const snap = await getDocs(q);
 
   listEl.innerHTML = snap.docs.map(d => {
     const item = d.data();
+    const buyers = item.buyers_count || 0;
     return `
-      <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 mb-2">
+      <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-2">
         <div>
-          <p class="text-xs font-bold text-slate-800">${item.title} (${item.price === 0 ? "Free" : "₹" + item.price})</p>
-          <p class="text-[10px] uppercase text-slate-500">${item.type || "PDF"}</p>
+          <p class="text-xs font-bold text-slate-800 dark:text-white">${item.title}</p>
+          <p class="text-[10px] font-semibold text-emerald-600 mt-0.5">
+            ${item.price === 0 ? "₹0 (Free)" : "₹" + item.price} • 👥 ${buyers} Enrolled • ⏳ 6 Months
+          </p>
         </div>
         <button onclick="window.deleteStoreItem('${d.id}')" class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">Delete</button>
       </div>`;
@@ -446,7 +375,7 @@ window.deleteFeedDoc = async function(dateStr) {
 };
 
 window.deleteStoreItem = async function(itemId) {
-  if (!confirm("Delete this item from the Store?")) return;
+  if (!confirm("Delete this E-Book/item from the Store?")) return;
   await deleteDoc(doc(db, "pdf_store", itemId));
   loadStoreAdminList();
 };
