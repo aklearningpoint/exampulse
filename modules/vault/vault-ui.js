@@ -1,8 +1,8 @@
 import { auth, db, provider, signInWithPopup, collection, getDocs, query, orderBy, limit, doc, getDoc, setDoc, updateDoc } from "../../core/firebase-config.js";
 
-let activeVaultTab = "ebooks"; // "ebooks", "library", "static"
+let activeVaultTab = "ebooks";
 let storeEbooksCache = [];
-let userLibraryMap = {}; // { ebookId: { purchasedAt, expiresAt, title } }
+let userLibraryMap = {};
 
 function formatExpiryDate(isoStr) {
   if (!isoStr) return "";
@@ -90,11 +90,12 @@ async function renderVaultSubContent() {
       const owned = isLicenseActive(userLibraryMap[book.id]);
       const priceLabel = book.price === 0 ? "₹0 (Free)" : `₹${book.price}`;
       const buyers = book.buyers_count || 0;
+      const isMcqBook = book.ebook_format === "mcq";
 
       return `
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mb-3">
           <div class="flex items-center justify-between mb-1.5">
-            <span class="px-2.5 py-0.5 rounded bg-[#285577] text-white text-[10px] font-extrabold uppercase">
+            <span class="px-2.5 py-0.5 rounded ${isMcqBook ? "bg-indigo-600" : "bg-[#285577]"} text-white text-[10px] font-extrabold uppercase">
               ${book.period ? `${book.period} E-Book` : "In-App Digest"}
             </span>
             <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">👥 ${buyers} Students</span>
@@ -134,7 +135,7 @@ async function renderVaultSubContent() {
       area.innerHTML = `
         <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200 dark:border-slate-800">
           <p class="font-bold text-slate-800 dark:text-white text-sm">Sign In to View Your E-Book Library</p>
-          <p class="text-xs text-slate-500 mt-1 mb-3">All E-Books you claim or purchase are saved in your profile for 6 months.</p>
+          <p class="text-xs text-slate-500 mt-1 mb-3">All E-Books you claim are saved in your profile for 6 months.</p>
           <button onclick="window.signInForLibrary()" class="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 text-xs font-extrabold">Sign In with Google</button>
         </div>`;
       return;
@@ -192,7 +193,6 @@ window.signInForLibrary = async function() {
   loadVaultView();
 };
 
-// Proper Checkout Confirmation Modal
 window.openEbookCheckout = async function(ebookId) {
   if (!auth.currentUser) {
     try {
@@ -226,10 +226,6 @@ window.openEbookCheckout = async function(ebookId) {
           <span class="text-slate-500">Access Validity:</span>
           <span class="font-bold text-emerald-600">6 Months (180 Days)</span>
         </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500">Format:</span>
-          <span class="font-bold">In-App Categorized Reader</span>
-        </div>
         <div class="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700 text-sm">
           <span class="font-bold">Total Payable:</span>
           <span class="font-black text-emerald-600">₹${book.price || 0}</span>
@@ -256,7 +252,7 @@ window.completeEbookPurchase = async function(ebookId) {
     const book = bookSnap.data();
 
     const now = new Date();
-    const expiry = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000); // +6 Months
+    const expiry = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
@@ -291,27 +287,33 @@ window.completeEbookPurchase = async function(ebookId) {
   }
 };
 
-// Full Categorized In-App Interactive E-Book Reader
+window.toggleMcqBookAnswer = function(ansBoxId) {
+  const el = document.getElementById(ansBoxId);
+  if (el) el.classList.toggle("hidden");
+};
+
+// Full Categorized In-App Reader (Supports Both News E-Book & MCQ E-Book)
 window.openInAppEbookReader = async function(ebookId, selectedChapter = "national") {
   const area = document.getElementById("vault-body-area");
-  area.innerHTML = `<div class="text-center py-12 text-xs text-slate-400">Opening In-App Magazine Reader...</div>`;
+  area.innerHTML = `<div class="text-center py-12 text-xs text-slate-400">Opening In-App Reader...</div>`;
 
   let book = storeEbooksCache.find(b => b.id === ebookId);
-  if (!book || !book.chapters) {
+  if (!book || (!book.chapters && !book.mcq_chapters)) {
     const snap = await getDoc(doc(db, "pdf_store", ebookId));
     if (!snap.exists()) return alert("E-Book content not found.");
     book = { id: snap.id, ...snap.data() };
   }
 
-  // Fallback for legacy external link items
-  if (!book.chapters && book.file_url) {
-    window.open(book.file_url, "_blank");
-    loadVaultView();
-    return;
-  }
+  const isMcqMode = book.ebook_format === "mcq" || Boolean(book.mcq_chapters);
+  const ch = isMcqMode ? (book.mcq_chapters || {}) : (book.chapters || {});
 
-  const ch = book.chapters || {};
-  const tabs = [
+  const tabs = isMcqMode ? [
+    { key: "national", label: `🇮🇳 National (${(ch.national || []).length})` },
+    { key: "banking", label: `🏦 Banking (${(ch.banking || []).length})` },
+    { key: "ssc", label: `📘 SSC (${(ch.ssc || []).length})` },
+    { key: "railway", label: `🚆 Railway (${(ch.railway || []).length})` },
+    { key: "upsc", label: `🏛️ UPSC/PCS (${(ch.upsc || []).length})` }
+  ] : [
     { key: "national", label: `🇮🇳 National (${(ch.national || []).length})` },
     { key: "banking", label: `🏦 Banking (${(ch.banking || []).length})` },
     { key: "ssc", label: `📘 SSC (${(ch.ssc || []).length})` },
@@ -326,7 +328,6 @@ window.openInAppEbookReader = async function(ebookId, selectedChapter = "nationa
 
   area.innerHTML = `
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
-      <!-- Reader Top Header -->
       <div class="bg-gradient-to-r from-[#285577] to-slate-900 text-white p-4">
         <div class="flex items-center justify-between mb-2">
           <button onclick="window.loadVaultView()" class="px-2.5 py-1 rounded-lg bg-white/15 text-[11px] font-bold">← My Library</button>
@@ -335,7 +336,6 @@ window.openInAppEbookReader = async function(ebookId, selectedChapter = "nationa
         <h2 class="font-extrabold text-sm leading-snug">${book.title}</h2>
       </div>
 
-      <!-- Categorized Chapter Tabs -->
       <div class="flex gap-1.5 overflow-x-auto p-2.5 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
         ${tabs.map(t => `
           <button onclick="window.openInAppEbookReader('${ebookId}', '${t.key}')" class="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition ${
@@ -348,11 +348,38 @@ window.openInAppEbookReader = async function(ebookId, selectedChapter = "nationa
         `).join("")}
       </div>
 
-      <!-- Chapter Reading Content -->
       <div class="p-4 space-y-3">
         ${items.length === 0 ? `
-          <p class="text-center text-xs text-slate-400 py-8">No topics in this chapter for this edition. Switch chapters above.</p>
-        ` : selectedChapter === "static_gk" ? items.map((s, idx) => `
+          <p class="text-center text-xs text-slate-400 py-8">No items in this chapter for this edition. Switch chapters above.</p>
+        ` : isMcqMode ? items.map((q, idx) => {
+          const ansId = `mcq_ans_${selectedChapter}_${idx}`;
+          return `
+            <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+              <div class="flex items-center justify-between text-[10px] font-bold text-indigo-600 dark:text-amber-400 mb-1">
+                <span>Q.${idx + 1}</span>
+                <span class="text-slate-400">${q.date || ""}</span>
+              </div>
+              <p class="font-bold text-xs text-slate-900 dark:text-white leading-snug">${q.question_en}</p>
+              ${q.question_hi ? `<p class="text-[11px] text-slate-600 dark:text-slate-300 mt-1">${q.question_hi}</p>` : ""}
+
+              <div class="mt-2 space-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+                ${(q.options || []).map((opt, i) => `
+                  <div class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700">
+                    <strong>(${String.fromCharCode(65 + i)})</strong> ${opt}
+                  </div>
+                `).join("")}
+              </div>
+
+              <button onclick="window.toggleMcqBookAnswer('${ansId}')" class="mt-2.5 px-3 py-1.5 rounded-lg bg-[#285577] text-white text-[10px] font-bold">
+                👁️ Show / Hide Answer
+              </button>
+
+              <div id="${ansId}" class="hidden mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px]">
+                <p class="font-bold text-emerald-700 dark:text-emerald-400">✓ Correct: (${String.fromCharCode(65 + (q.correct_index || 0))}) ${(q.options || [])[q.correct_index] || ""}</p>
+                ${q.explanation_en ? `<p class="text-slate-700 dark:text-slate-300 mt-1">${q.explanation_en}</p>` : ""}
+              </div>
+            </div>`;
+        }).join("") : selectedChapter === "static_gk" ? items.map((s, idx) => `
           <div class="p-3.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/70 dark:border-purple-800/50">
             <span class="text-[10px] font-extrabold uppercase text-purple-700 dark:text-purple-300">${s.subject}</span>
             <h4 class="font-bold text-sm text-slate-900 dark:text-white mt-0.5">${idx + 1}. ${s.title}</h4>
